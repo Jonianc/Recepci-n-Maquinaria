@@ -208,13 +208,13 @@ final class ARM_Form {
 
         .arm-step{display:none;}
         .arm-step.is-active{display:block;}
-        .arm-step h2{font-size:15px;margin:0 0 10px;}
+        .arm-step h2{font-size:15px;margin:0 0 8px;}
         .arm-help{color:var(--muted);font-size:12px;margin:-6px 0 10px;}
 
         /* Fields */
         .arm-grid{display:grid;grid-template-columns:1fr;gap:12px;}
         @media(min-width:760px){.arm-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-        .arm-field label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted);}
+        .arm-field label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted);font-weight:600;}
         .arm-required{color:var(--danger);font-weight:700;margin-left:4px;}
         .arm-hint{font-size:12px;color:var(--muted);margin-top:6px;}
         .arm-input, .arm-textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:16px;background:#fff;transition:border-color .15s, box-shadow .15s;}
@@ -224,13 +224,15 @@ final class ARM_Form {
         .arm-chip{
             position:relative;display:inline-flex;align-items:center;gap:8px;
             padding:10px 12px;border:1px solid var(--border);border-radius:999px;
-            background:#fff;color:var(--text);font-size:14px;user-select:none;
+            background:#fff;color:var(--text);font-size:14px;user-select:none;cursor:pointer;
+            transition:border-color .15s, box-shadow .15s, background .15s;
         }
         .arm-chip input{position:absolute;opacity:0;pointer-events:none;}
         .arm-chip:focus-within{outline:2px solid rgba(10,125,59,.35);outline-offset:2px;}
         .arm-chip.is-on{border-color:rgba(10,125,59,.45);background:rgba(10,125,59,.08);}
 
         .arm-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+        .arm-section.is-soft{background:#fafafb;border:1px solid var(--border);border-radius:14px;padding:12px 12px 4px;}
         .arm-section h3{margin:0 0 10px;font-size:14px;}
 
         /* Checklist */
@@ -534,6 +536,7 @@ final class ARM_Form {
                 <!-- Paso 1 -->
                 <section class="arm-step is-active" data-step="1">
                     <h2>Cliente</h2>
+                    <p class="arm-help">Completa los datos básicos del cliente y la fecha de recepción.</p>
                     <div class="arm-grid">
                         <div class="arm-field">
                             <label for="arm_fecha_recepcion"><strong>Fecha de recepción</strong><span class="arm-required">*</span></label>
@@ -553,6 +556,7 @@ final class ARM_Form {
                 <!-- Paso 2 -->
                 <section class="arm-step" data-step="2">
                     <h2>Equipo</h2>
+                    <p class="arm-help">Selecciona tipo y marca para mostrar los campos correspondientes.</p>
 
                     <div class="arm-grid">
                         <div class="arm-field">
@@ -633,15 +637,16 @@ final class ARM_Form {
                 <!-- Paso 3 -->
                 <section class="arm-step" data-step="3">
                     <h2>Detalle</h2>
+                    <p class="arm-help">Describe la falla, marca el checklist y agrega observaciones relevantes.</p>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Falla</h3>
                         <div class="arm-field">
                             <textarea class="arm-textarea" name="arm_falla" rows="3" placeholder="Síntoma + cuándo ocurre + cualquier detalle útil"></textarea>
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Checklist</h3>
                         <div class="arm-inline" style="margin-bottom:10px;">
                             <button type="button" class="arm-btn" data-action="check-all">Marcar todo</button>
@@ -665,14 +670,14 @@ final class ARM_Form {
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Otros</h3>
                         <div class="arm-field">
                             <textarea class="arm-textarea" name="arm_otros" rows="2"></textarea>
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Estado</h3>
 
                         <div class="arm-grid">
@@ -700,7 +705,7 @@ final class ARM_Form {
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Imágenes (recomendado 3 • máx. 10)</h3>
                         <div class="arm-file">
                             <div class="arm-field">
@@ -712,7 +717,7 @@ final class ARM_Form {
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <div id="arm_summary" class="arm-summary">
                             <h4>Resumen</h4>
                             <dl>

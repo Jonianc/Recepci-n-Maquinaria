@@ -76,7 +76,8 @@ final class ARM_PDF {
 
         $pdf->SetDrawColor(215,215,215);
         $pdf->SetLineWidth(0.2);
-        $pdf->Rect($x, $y0, $w, 22);
+        $boxH = 24;
+        $pdf->Rect($x, $y0, $w, $boxH);
 
         $pdf->SetXY($x + 3, $y0 + 3);
         $pdf->SetFont('Arial','B',11);
@@ -98,29 +99,32 @@ final class ARM_PDF {
 
         $pdf->SetFont('Arial','',10);
         $pdf->SetX($x + 3);
-        $pdf->Cell(0, 5.5, self::enc(trim($tipo . ' — ' . $marca . ' ' . $modelo)), 0, 1, 'L');
+        $tipoLabel = $tipo !== '' ? $tipo : '—';
+        $marcaLabel = $marca !== '' ? $marca : '—';
+        $modeloLabel = $modelo !== '' ? $modelo : '—';
+        $pdf->Cell(0, 5.5, self::enc(trim($tipoLabel . ' — ' . $marcaLabel . ' ' . $modeloLabel)), 0, 1, 'L');
 
         $line = [];
-        if ($serie !== '')  { $line[] = 'Serie: ' . $serie; }
-        if ($patente !== ''){ $line[] = 'Patente: ' . $patente; }
-        if ($horas !== '')  { $line[] = 'Horas: ' . $horas; }
+        $line[] = 'Serie: ' . ($serie !== '' ? $serie : '—');
+        $line[] = 'Patente: ' . ($patente !== '' ? $patente : '—');
+        $line[] = 'Horas: ' . ($horas !== '' ? $horas : '—');
         $pdf->SetX($x + 3);
         $pdf->MultiCell($w - 6, 5.2, self::enc(implode('   |   ', $line)), 0, 'L');
 
         $line2 = [];
-        if ($llaves !== '') { $line2[] = 'Llaves: ' . $llaves; }
-        if ($comb !== '')   { $line2[] = 'Combustible: ' . $comb; }
-        if (!empty($line2)) {
-            $pdf->SetX($x + 3);
-            $pdf->MultiCell($w - 6, 5.2, self::enc(implode('   |   ', $line2)), 0, 'L');
-        }
+        $line2[] = 'Llaves: ' . ($llaves !== '' ? $llaves : '—');
+        $line2[] = 'Combustible: ' . ($comb !== '' ? $comb : '—');
+        $pdf->SetX($x + 3);
+        $pdf->MultiCell($w - 6, 5.2, self::enc(implode('   |   ', $line2)), 0, 'L');
 
-        $pdf->SetY($y0 + 22);
+        $pdf->SetY($y0 + $boxH);
     }
 
     private static function card_title(ARM_PDF_Doc $pdf, string $title): void {
         $pdf->SetFont('Arial','B',11);
-        $pdf->Cell(0, 7, self::enc($title), 0, 1, 'L');
+        $pdf->SetFillColor(244, 245, 247);
+        $pdf->SetTextColor(30, 30, 30);
+        $pdf->Cell(0, 7.5, self::enc($title), 0, 1, 'L', true);
         $pdf->SetDrawColor(220,220,220);
         $pdf->Line(12, $pdf->GetY(), 198, $pdf->GetY());
         $pdf->Ln(3);
@@ -139,7 +143,7 @@ final class ARM_PDF {
         $pdf->SetXY(12 + $labelW, $y0);
 
         $pdf->SetFont('Arial', '', 10);
-        $pdf->MultiCell($valueW, $lineH, self::enc($value), 0, 'L');
+        $pdf->MultiCell($valueW, $lineH, self::enc(self::value_or_dash($value)), 0, 'L');
         $y2 = $pdf->GetY();
 
         $pdf->SetY(max($y1, $y2));
@@ -181,11 +185,13 @@ final class ARM_PDF {
         $y0 = $pdf->GetY();
         $x = 12; $w = 198 - 12 - 12;
         $pdf->SetDrawColor(215,215,215);
-        $pdf->Rect($x, $y0, $w, 22);
-        $pdf->SetXY($x+3, $y0+2);
         $pdf->SetFont('Arial','',10);
-        $pdf->MultiCell($w-6, 5.2, self::enc((string)($data['arm_falla'] ?? '')), 0, 'L');
-        $pdf->SetY($y0 + 22);
+        $falla = self::value_or_dash((string)($data['arm_falla'] ?? ''));
+        $boxH = self::calc_box_height($pdf, $w - 6, 5.2, $falla, 20);
+        $pdf->Rect($x, $y0, $w, $boxH);
+        $pdf->SetXY($x+3, $y0+2);
+        $pdf->MultiCell($w-6, 5.2, self::enc($falla), 0, 'L');
+        $pdf->SetY($y0 + $boxH);
         $pdf->Ln(2);
 
         // Checklist (más visual)
@@ -197,14 +203,20 @@ final class ARM_PDF {
         $selected = array_map('strval', $selected);
 
         $all = [
-            'TAPA TDF','VARILLA AC','ANTIVUELCO','BARRA TIRO','GANCHO TIRO','TAPA BATERIA',
-            'EMB. REMOTO','PUERTAS','EXTINTOR','CUÑAS','GOTEO','LUCES','ETC.'
+            'TAPA TDF',
+            'VARILLA AC',
+            'ANTIVUELCO',
+            'ESPEJOS',
+            'VIDRIOS',
+            'FOCOS',
+            'TUERCA RUEDA',
+            'NIVEL COMBUSTIBLE',
         ];
 
-        // 3 columnas (mostrar todos; marca compatible: X)
-        $cols = 3;
+        // 2 columnas (más legible)
+        $cols = 2;
         $colW = (198 - 12 - 12) / $cols;
-        $lineH = 5.2;
+        $lineH = 5.6;
         $startX = 12;
         $startY = $pdf->GetY();
 
@@ -230,12 +242,15 @@ final class ARM_PDF {
         $pdf->SetFont('Arial','B',10);
         $pdf->Cell(0, 6, self::enc('Otros'), 0, 1, 'L');
         $y0 = $pdf->GetY();
+        $x = 12;
         $pdf->SetDrawColor(215,215,215);
-        $pdf->Rect($x, $y0, $w, 16);
+        $otros = self::value_or_dash((string)($data['arm_otros'] ?? ''));
+        $boxH = self::calc_box_height($pdf, $w - 6, 5.2, $otros, 14);
+        $pdf->Rect($x, $y0, $w, $boxH);
         $pdf->SetXY($x+3, $y0+2);
         $pdf->SetFont('Arial','',10);
-        $pdf->MultiCell($w-6, 5.2, self::enc((string)($data['arm_otros'] ?? '')), 0, 'L');
-        $pdf->SetY($y0 + 16);
+        $pdf->MultiCell($w-6, 5.2, self::enc($otros), 0, 'L');
+        $pdf->SetY($y0 + $boxH);
     }
 
     private static function section_estado(ARM_PDF_Doc $pdf, array $data): void {
@@ -249,13 +264,50 @@ final class ARM_PDF {
         $y0 = $pdf->GetY();
         $x = 12; $w = 198 - 12 - 12;
         $pdf->SetDrawColor(215,215,215);
-        $pdf->Rect($x, $y0, $w, 18);
+        $obs = self::value_or_dash((string)($data['arm_observaciones'] ?? ''));
+        $boxH = self::calc_box_height($pdf, $w - 6, 5.2, $obs, 16);
+        $pdf->Rect($x, $y0, $w, $boxH);
         $pdf->SetXY($x+3, $y0+2);
         $pdf->SetFont('Arial','',10);
-        $pdf->MultiCell($w-6, 5.2, self::enc((string)($data['arm_observaciones'] ?? '')), 0, 'L');
-        $pdf->SetY($y0 + 18);
+        $pdf->MultiCell($w-6, 5.2, self::enc($obs), 0, 'L');
+        $pdf->SetY($y0 + $boxH);
     }
 
+
+    private static function value_or_dash(string $value): string {
+        $value = trim($value);
+        return $value !== '' ? $value : '—';
+    }
+
+    private static function calc_box_height(ARM_PDF_Doc $pdf, float $width, float $lineH, string $text, float $minHeight): float {
+        $lines = self::calc_text_lines($pdf, $width, $text);
+        $height = ($lines * $lineH) + 4;
+        return max($minHeight, $height);
+    }
+
+    private static function calc_text_lines(ARM_PDF_Doc $pdf, float $width, string $text): int {
+        $text = str_replace("\r", '', $text);
+        if ($text === '') {
+            return 1;
+        }
+        $words = explode("\n", $text);
+        $lines = 0;
+        foreach ($words as $block) {
+            $line = '';
+            $chunks = preg_split('/\s+/', $block);
+            foreach ($chunks as $chunk) {
+                $test = $line === '' ? $chunk : $line . ' ' . $chunk;
+                if ($pdf->GetStringWidth($test) <= $width) {
+                    $line = $test;
+                } else {
+                    $lines++;
+                    $line = $chunk;
+                }
+            }
+            $lines++;
+        }
+        return max(1, $lines);
+    }
 
 
     public static function enc(string $s): string {
