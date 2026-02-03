@@ -45,10 +45,6 @@ final class ARM_PDF {
         $pdf->SetAutoPageBreak(true, 18);
         $pdf->AddPage();
 
-        // ===== Resumen (arriba) =====
-        $pdf->Ln(2);
-        self::summary_box($pdf, $data);
-
         // ===== Secciones =====
         $pdf->Ln(3);
         self::section_cliente($pdf, $data);
@@ -67,57 +63,6 @@ final class ARM_PDF {
             'path' => $filepath,
             'url'  => $fileurl,
         ];
-    }
-
-    private static function summary_box(ARM_PDF_Doc $pdf, array $data): void {
-        $x = 12;
-        $w = 198 - 12 - 12;
-        $y0 = $pdf->GetY();
-
-        $pdf->SetDrawColor(215,215,215);
-        $pdf->SetLineWidth(0.2);
-        $boxH = 24;
-        $pdf->Rect($x, $y0, $w, $boxH);
-
-        $pdf->SetXY($x + 3, $y0 + 3);
-        $pdf->SetFont('Arial','B',11);
-        $pdf->Cell(0, 6, self::enc('Resumen'), 0, 1, 'L');
-
-        $tipo = (string)($data['arm_tipo_maquinaria'] ?? '');
-        $marca = '';
-        if ($tipo === 'Tractor') {
-            $marca = (string)($data['arm_marca_tractor'] ?? '');
-        } else {
-            $marca = (string)($data['arm_marca_implemento'] ?? '');
-        }
-        $modelo = (string)($data['arm_modelo'] ?? '');
-        $serie  = (string)($data['arm_serie'] ?? '');
-        $patente= (string)($data['arm_patente'] ?? '');
-        $horas  = (string)($data['arm_horas'] ?? '');
-        $llaves = (string)($data['arm_llaves'] ?? '');
-        $comb   = (string)($data['arm_nivel_combustible'] ?? '');
-
-        $pdf->SetFont('Arial','',10);
-        $pdf->SetX($x + 3);
-        $tipoLabel = $tipo !== '' ? $tipo : '—';
-        $marcaLabel = $marca !== '' ? $marca : '—';
-        $modeloLabel = $modelo !== '' ? $modelo : '—';
-        $pdf->Cell(0, 5.5, self::enc(trim($tipoLabel . ' — ' . $marcaLabel . ' ' . $modeloLabel)), 0, 1, 'L');
-
-        $line = [];
-        $line[] = 'Serie: ' . ($serie !== '' ? $serie : '—');
-        $line[] = 'Patente: ' . ($patente !== '' ? $patente : '—');
-        $line[] = 'Horas: ' . ($horas !== '' ? $horas : '—');
-        $pdf->SetX($x + 3);
-        $pdf->MultiCell($w - 6, 5.2, self::enc(implode('   |   ', $line)), 0, 'L');
-
-        $line2 = [];
-        $line2[] = 'Llaves: ' . ($llaves !== '' ? $llaves : '—');
-        $line2[] = 'Combustible: ' . ($comb !== '' ? $comb : '—');
-        $pdf->SetX($x + 3);
-        $pdf->MultiCell($w - 6, 5.2, self::enc(implode('   |   ', $line2)), 0, 'L');
-
-        $pdf->SetY($y0 + $boxH);
     }
 
     private static function card_title(ARM_PDF_Doc $pdf, string $title): void {
@@ -351,17 +296,6 @@ final class ARM_PDF_Doc extends \FPDF {
     }
 
     public function Footer(): void {
-        $this->SetY(-18);
-        $this->SetFont('Arial', '', 9);
-        $this->SetTextColor(70,70,70);
-
-        $footer = trim((string)$this->footer_text);
-        if ($footer !== '') {
-            $this->MultiCell(0, 4.2, ARM_PDF::enc($footer), 0, 'C');
-        }
-
-        $this->SetY(-12);
-        $this->SetFont('Arial','',8);
-        $this->Cell(0, 4, ARM_PDF::enc('Página ') . $this->PageNo() . '/{nb}', 0, 0, 'R');
+        return;
     }
 }
