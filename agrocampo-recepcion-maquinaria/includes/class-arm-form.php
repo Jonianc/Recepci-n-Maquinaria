@@ -72,6 +72,7 @@ final class ARM_Form {
 
         // Handler de envío
         add_action('init', [$this, 'handle_post']);
+        add_action('arm_send_email_async', [$this, 'send_email_async'], 10, 1);
     }
 
     public function add_query_vars(array $vars): array {
@@ -122,6 +123,8 @@ final class ARM_Form {
             $mail_txt = '—';
             if ($mail_status === 'sent') {
                 $mail_txt = 'Enviado';
+            } elseif ($mail_status === 'queued') {
+                $mail_txt = 'En cola de envío';
             } elseif ($mail_status === 'skipped') {
                 $mail_txt = 'Omitido (sin SMTP)';
             } elseif ($mail_status === 'failed') {
@@ -432,8 +435,8 @@ final class ARM_Form {
         resolve(file);
         return;
       }
-      var maxDim = 1600;
-      var maxSize = 1.5 * 1024 * 1024;
+      var maxDim = 1200;
+      var maxSize = 900 * 1024;
       var img = new Image();
       var url = URL.createObjectURL(file);
       img.onload = function(){
@@ -464,7 +467,7 @@ final class ARM_Form {
           }
           var optimized = new File([blob], file.name, { type: blob.type || file.type, lastModified: file.lastModified });
           resolve(optimized);
-        }, 'image/jpeg', 0.85);
+        }, 'image/jpeg', 0.8);
       };
       img.onerror = function(){
         URL.revokeObjectURL(url);
@@ -889,6 +892,8 @@ final class ARM_Form {
         // Upload images (máx. 10) solo para adjuntar en correo
         $image_paths = [];
         $image_count = 0;
+        $image_bytes = 0;
+        $image_limit = 10 * 1024 * 1024;
 
         // Nuevo input múltiple: arm_imagenes[]
         if (!empty($_FILES['arm_imagenes']) && is_array($_FILES['arm_imagenes']['name'] ?? null)) {
@@ -912,8 +917,14 @@ final class ARM_Form {
                 ];
                 $path = $this->handle_image_upload_temp($file);
                 if ($path) {
-                    $image_paths[] = $path;
-                    $image_count++;
+                    $size = (int) @filesize($path);
+                    if ($size > 0 && ($image_bytes + $size) <= $image_limit) {
+                        $image_paths[] = $path;
+                        $image_count++;
+                        $image_bytes += $size;
+                    } else {
+                        $this->cleanup_temp_files([$path]);
+                    }
                 }
             }
         } else {
@@ -923,8 +934,14 @@ final class ARM_Form {
                 if (empty($_FILES[$f]) || empty($_FILES[$f]['name'])) continue;
                 $path = $this->handle_image_upload_temp($_FILES[$f]);
                 if ($path) {
-                    $image_paths[] = $path;
-                    $image_count++;
+                    $size = (int) @filesize($path);
+                    if ($size > 0 && ($image_bytes + $size) <= $image_limit) {
+                        $image_paths[] = $path;
+                        $image_count++;
+                        $image_bytes += $size;
+                    } else {
+                        $this->cleanup_temp_files([$path]);
+                    }
                 }
             }
         }
@@ -932,11 +949,19 @@ final class ARM_Form {
         // Generate PDF
         $pdf = ARM_PDF::generate((int)$post_id);
         update_post_meta($post_id, 'arm_pdf_url', $pdf['url']);
+        update_post_meta($post_id, 'arm_pdf_path', $pdf['path']);
+        update_post_meta($post_id, 'arm_email_image_paths', $image_paths);
+        update_post_meta($post_id, 'arm_email_image_count', $image_count);
 
-        // Email (failsafe if server has no mail() and no SMTP)
-        $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url'], $image_paths, $image_count);
-        update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
-        $this->cleanup_temp_files($image_paths);
+        // Email (async)
+        $queued = wp_schedule_single_event(time() + 5, 'arm_send_email_async', [(int) $post_id]);
+        if ($queued) {
+            update_post_meta($post_id, 'arm_email_status', 'queued');
+        } else {
+            $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url'], $image_paths, $image_count);
+            update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
+            $this->cleanup_temp_files($image_paths);
+        }
 
         // Redirect success
         $url = add_query_arg('arm_ok', (string) $post_id, $this->frontend_url());
@@ -970,6 +995,22 @@ final class ARM_Form {
                 @unlink($path);
             }
         }
+    }
+
+    public function send_email_async(int $post_id): void {
+        $pdf_path = (string) get_post_meta($post_id, 'arm_pdf_path', true);
+        $pdf_url = (string) get_post_meta($post_id, 'arm_pdf_url', true);
+        $image_paths = get_post_meta($post_id, 'arm_email_image_paths', true);
+        $image_count = (int) get_post_meta($post_id, 'arm_email_image_count', true);
+        if (!is_array($image_paths)) {
+            $image_paths = [];
+        }
+
+        $mail_res = ARM_Email::send((int)$post_id, $pdf_path, $pdf_url, $image_paths, $image_count);
+        update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
+        $this->cleanup_temp_files($image_paths);
+        delete_post_meta($post_id, 'arm_email_image_paths');
+        delete_post_meta($post_id, 'arm_email_image_count');
     }
 
     private function redirect_err(string $msg): void {
