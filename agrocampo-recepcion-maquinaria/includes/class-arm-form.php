@@ -221,7 +221,8 @@ final class ARM_Form {
         .arm-field label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted);font-weight:600;}
         .arm-required{color:var(--danger);font-weight:700;margin-left:4px;}
         .arm-hint{font-size:12px;color:var(--muted);margin-top:6px;}
-        .arm-input, .arm-textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:16px;background:#fff;transition:border-color .15s, box-shadow .15s;}
+        .arm-input, .arm-textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:16px;background:#fff;transition:border-color .15s, box-shadow .15s;line-height:1.2;}
+        .arm-input[type="date"]{text-align:left;min-height:46px;}
         .arm-input:focus, .arm-textarea:focus{border-color:rgba(10,125,59,.5);box-shadow:0 0 0 3px rgba(10,125,59,.12);outline:none;}
         .arm-textarea{resize:vertical;min-height:88px;}
         .arm-inline{display:flex;flex-wrap:wrap;gap:10px;}

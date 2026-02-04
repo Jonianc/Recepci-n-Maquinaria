@@ -15,7 +15,8 @@
 .arm-field label{display:block;margin-bottom:6px;font-weight:600;color:#4b5563}
 .arm-required{color:#dc2626;font-weight:700;margin-left:4px}
 .arm-hint{font-size:12px;color:#6b7280;margin-top:6px}
-.arm-input,.arm-textarea,.arm-field input[type="text"],.arm-field input[type="email"],.arm-field input[type="date"],.arm-field textarea{width:100%;padding:10px;border:1px solid #d9d9d9;border-radius:8px;transition:border-color .15s, box-shadow .15s}
+.arm-input,.arm-textarea,.arm-field input[type="text"],.arm-field input[type="email"],.arm-field input[type="date"],.arm-field textarea{width:100%;padding:10px;border:1px solid #d9d9d9;border-radius:8px;transition:border-color .15s, box-shadow .15s;line-height:1.2}
+.arm-field input[type="date"]{text-align:left;min-height:44px}
 .arm-input:focus,.arm-textarea:focus{border-color:#1a7f3c;box-shadow:0 0 0 3px rgba(26,127,60,.15);outline:none}
 .arm-inline{display:flex;gap:14px;flex-wrap:wrap}
 .arm-wrap-line label{white-space:nowrap}

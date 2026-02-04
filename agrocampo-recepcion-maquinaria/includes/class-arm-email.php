@@ -107,7 +107,7 @@ final class ARM_Email {
         update_post_meta($post_id, 'arm_email_status', $status);
         $error_message = '';
         if ($status === 'failed') {
-            $error_message = $last_mail_error !== '' ? $last_mail_error : 'wp_mail() devolvió false';
+            $error_message = $last_mail_error !== '' ? $last_mail_error : 'wp_mail() devolvió false. Revisa SMTP o configuración del servidor.';
         }
         update_post_meta($post_id, 'arm_email_message', $error_message);
 
