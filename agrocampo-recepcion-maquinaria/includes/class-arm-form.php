@@ -315,6 +315,7 @@ final class ARM_Form {
   var stepLabel = $('#arm_step_label');
   var imagesInput = $('#arm_images');
   var preview = $('#arm_preview');
+  var storedFiles = [];
 
   function setToday(){
     var d = $('#arm_fecha_recepcion');
@@ -421,17 +422,27 @@ final class ARM_Form {
 
   function bytesToMB(b){ return Math.round((b/1024/1024)*10)/10; }
 
+  function fileKey(file){
+    return [file.name, file.size, file.lastModified].join('|');
+  }
+
+  function syncInputFiles(){
+    if(!imagesInput) return;
+    var dt = new DataTransfer();
+    storedFiles.forEach(function(f){ dt.items.add(f); });
+    imagesInput.files = dt.files;
+  }
+
   function updateImagePreview(){
     if(!imagesInput || !preview) return;
     preview.innerHTML = '';
     var hint = $('#arm_img_hint');
-    var files = Array.prototype.slice.call(imagesInput.files || []);
+    var files = storedFiles.slice();
     var max = 10;
     if(files.length > max){
       files = files.slice(0,max);
-      var dt = new DataTransfer();
-      files.forEach(function(f){ dt.items.add(f); });
-      imagesInput.files = dt.files;
+      storedFiles = files.slice();
+      syncInputFiles();
     }
     var total = files.reduce(function(a,f){ return a + (f.size||0); }, 0);
     if(hint){
@@ -443,15 +454,29 @@ final class ARM_Form {
       wrap.className = 'arm-thumb';
       wrap.innerHTML = '<img alt="" src="'+url+'"><button type="button" aria-label="Quitar">×</button>';
       $('button', wrap).addEventListener('click', function(){
-        var cur = Array.prototype.slice.call(imagesInput.files || []);
-        cur.splice(idx,1);
-        var dt2 = new DataTransfer();
-        cur.forEach(function(f){ dt2.items.add(f); });
-        imagesInput.files = dt2.files;
+        storedFiles.splice(idx,1);
+        syncInputFiles();
         updateImagePreview();
       });
       preview.appendChild(wrap);
     });
+  }
+
+  function mergeSelectedFiles(){
+    if(!imagesInput) return;
+    var incoming = Array.prototype.slice.call(imagesInput.files || []);
+    if(!incoming.length) return;
+    var seen = {};
+    storedFiles.forEach(function(f){ seen[fileKey(f)] = true; });
+    incoming.forEach(function(f){
+      var key = fileKey(f);
+      if(!seen[key]){
+        storedFiles.push(f);
+        seen[key] = true;
+      }
+    });
+    syncInputFiles();
+    updateImagePreview();
   }
 
   // Events
@@ -465,7 +490,7 @@ final class ARM_Form {
   var patente = $('#arm_patente');
   if(patente){ patente.addEventListener('input', function(){ patente.value = patente.value.toUpperCase(); }); patente.addEventListener('blur', upperPatente); }
 
-  if(imagesInput){ imagesInput.addEventListener('change', updateImagePreview); }
+  if(imagesInput){ imagesInput.addEventListener('change', mergeSelectedFiles); }
 
   // Checklist chips
   $all('.arm-chip input').forEach(function(i){
