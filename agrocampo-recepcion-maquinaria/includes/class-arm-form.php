@@ -709,7 +709,7 @@ final class ARM_Form {
                         <h3>Imágenes (recomendado 3 • máx. 10)</h3>
                         <div class="arm-file">
                             <div class="arm-field">
-                                <input id="arm_images" class="arm-input" type="file" name="arm_imagenes[]" accept="image/*" multiple capture="environment">
+                                <input id="arm_images" class="arm-input" type="file" name="arm_imagenes[]" accept="image/*" multiple>
                                 <div class="arm-sub" style="margin-top:6px;">Sugerencia: 1 general + 1 placa/serie + 1 falla. Máx. 10 fotos.</div>
                                 <div id="arm_img_hint" class="arm-sub" style="margin-top:4px;"></div>
                             </div>
