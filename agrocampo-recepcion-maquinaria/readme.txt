@@ -4,7 +4,7 @@ Tags: pdf, fpdf, formulario, recepcion, maquinaria
 Requires at least: 5.8
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 1.0.6
+Stable tag: 1.1.1
 
 == Descripción ==
 Formulario de recepción de maquinaria (Agrocampo) que genera PDF (FPDF) y lo envía por correo.
@@ -20,3 +20,7 @@ Formulario de recepción de maquinaria (Agrocampo) que genera PDF (FPDF) y lo en
 - Si tu hosting tiene mail() deshabilitado, configura SMTP (ej. WP Mail SMTP).
 - El plugin carga FPDF solo si no existe ya en el sitio (evita conflictos).
 - Se omiten binarios del tutorial de FPDF (fuentes/imágenes) para compatibilidad con repositorios que no aceptan archivos binarios.
+
+== Changelog ==
+= 1.1.1 =
+* Reorganiza el admin con pestañas y menú principal para mejorar jerarquía y navegación.

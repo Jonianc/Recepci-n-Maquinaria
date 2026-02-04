@@ -125,7 +125,8 @@ final class ARM_Form {
             } elseif ($mail_status === 'skipped') {
                 $mail_txt = 'Omitido (sin SMTP)';
             } elseif ($mail_status === 'failed') {
-                $mail_txt = 'Falló';
+                $mail_msg = $id ? (string) get_post_meta($id, 'arm_email_message', true) : '';
+                $mail_txt = $mail_msg ? ('Falló: ' . $mail_msg) : 'Falló';
             }
 
             $out .= '<div class="arm-notice arm-notice--success">'
@@ -208,29 +209,32 @@ final class ARM_Form {
 
         .arm-step{display:none;}
         .arm-step.is-active{display:block;}
-        .arm-step h2{font-size:15px;margin:0 0 10px;}
+        .arm-step h2{font-size:15px;margin:0 0 8px;}
         .arm-help{color:var(--muted);font-size:12px;margin:-6px 0 10px;}
 
         /* Fields */
         .arm-grid{display:grid;grid-template-columns:1fr;gap:12px;}
         @media(min-width:760px){.arm-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-        .arm-field label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted);}
+        .arm-field label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted);font-weight:600;}
         .arm-required{color:var(--danger);font-weight:700;margin-left:4px;}
         .arm-hint{font-size:12px;color:var(--muted);margin-top:6px;}
-        .arm-input, .arm-textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:16px;background:#fff;transition:border-color .15s, box-shadow .15s;}
+        .arm-input, .arm-textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:16px;background:#fff;transition:border-color .15s, box-shadow .15s;line-height:1.2;}
+        .arm-input[type="date"]{text-align:left;min-height:46px;}
         .arm-input:focus, .arm-textarea:focus{border-color:rgba(10,125,59,.5);box-shadow:0 0 0 3px rgba(10,125,59,.12);outline:none;}
         .arm-textarea{resize:vertical;min-height:88px;}
         .arm-inline{display:flex;flex-wrap:wrap;gap:10px;}
         .arm-chip{
             position:relative;display:inline-flex;align-items:center;gap:8px;
             padding:10px 12px;border:1px solid var(--border);border-radius:999px;
-            background:#fff;color:var(--text);font-size:14px;user-select:none;
+            background:#fff;color:var(--text);font-size:14px;user-select:none;cursor:pointer;
+            transition:border-color .15s, box-shadow .15s, background .15s;
         }
         .arm-chip input{position:absolute;opacity:0;pointer-events:none;}
         .arm-chip:focus-within{outline:2px solid rgba(10,125,59,.35);outline-offset:2px;}
         .arm-chip.is-on{border-color:rgba(10,125,59,.45);background:rgba(10,125,59,.08);}
 
         .arm-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+        .arm-section.is-soft{background:#fafafb;border:1px solid var(--border);border-radius:14px;padding:12px 12px 4px;}
         .arm-section h3{margin:0 0 10px;font-size:14px;}
 
         /* Checklist */
@@ -313,6 +317,7 @@ final class ARM_Form {
   var stepLabel = $('#arm_step_label');
   var imagesInput = $('#arm_images');
   var preview = $('#arm_preview');
+  var storedFiles = [];
 
   function setToday(){
     var d = $('#arm_fecha_recepcion');
@@ -419,17 +424,75 @@ final class ARM_Form {
 
   function bytesToMB(b){ return Math.round((b/1024/1024)*10)/10; }
 
+  function fileKey(file){
+    return [file.name, file.size, file.lastModified].join('|');
+  }
+
+  function optimizeImage(file){
+    return new Promise(function(resolve){
+      if(!file || !file.type || file.type.indexOf('image/') !== 0){
+        resolve(file);
+        return;
+      }
+      var maxDim = 1000;
+      var maxSize = 600 * 1024;
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function(){
+        var w = img.width;
+        var h = img.height;
+        var maxSide = Math.max(w, h);
+        var scale = Math.min(1, maxDim / maxSide);
+        if(scale >= 1 && file.size <= maxSize){
+          URL.revokeObjectURL(url);
+          resolve(file);
+          return;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
+        var ctx = canvas.getContext('2d');
+        if(!ctx){
+          URL.revokeObjectURL(url);
+          resolve(file);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function(blob){
+          URL.revokeObjectURL(url);
+          if(!blob){
+            resolve(file);
+            return;
+          }
+          var optimized = new File([blob], file.name, { type: blob.type || file.type, lastModified: file.lastModified });
+          resolve(optimized);
+        }, 'image/jpeg', 0.72);
+      };
+      img.onerror = function(){
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    });
+  }
+
+  function syncInputFiles(){
+    if(!imagesInput) return;
+    var dt = new DataTransfer();
+    storedFiles.forEach(function(f){ dt.items.add(f); });
+    imagesInput.files = dt.files;
+  }
+
   function updateImagePreview(){
     if(!imagesInput || !preview) return;
     preview.innerHTML = '';
     var hint = $('#arm_img_hint');
-    var files = Array.prototype.slice.call(imagesInput.files || []);
+    var files = storedFiles.slice();
     var max = 10;
     if(files.length > max){
       files = files.slice(0,max);
-      var dt = new DataTransfer();
-      files.forEach(function(f){ dt.items.add(f); });
-      imagesInput.files = dt.files;
+      storedFiles = files.slice();
+      syncInputFiles();
     }
     var total = files.reduce(function(a,f){ return a + (f.size||0); }, 0);
     if(hint){
@@ -441,14 +504,36 @@ final class ARM_Form {
       wrap.className = 'arm-thumb';
       wrap.innerHTML = '<img alt="" src="'+url+'"><button type="button" aria-label="Quitar">×</button>';
       $('button', wrap).addEventListener('click', function(){
-        var cur = Array.prototype.slice.call(imagesInput.files || []);
-        cur.splice(idx,1);
-        var dt2 = new DataTransfer();
-        cur.forEach(function(f){ dt2.items.add(f); });
-        imagesInput.files = dt2.files;
+        storedFiles.splice(idx,1);
+        syncInputFiles();
         updateImagePreview();
       });
       preview.appendChild(wrap);
+    });
+  }
+
+  function mergeSelectedFiles(){
+    if(!imagesInput) return;
+    var incoming = Array.prototype.slice.call(imagesInput.files || []);
+    if(!incoming.length) return;
+    var seen = {};
+    storedFiles.forEach(function(f){ seen[fileKey(f)] = true; });
+    var chain = Promise.resolve();
+    incoming.forEach(function(f){
+      chain = chain.then(function(){
+        var key = fileKey(f);
+        if(seen[key]){
+          return null;
+        }
+        seen[key] = true;
+        return optimizeImage(f).then(function(optFile){
+          storedFiles.push(optFile || f);
+        });
+      });
+    });
+    chain.then(function(){
+      syncInputFiles();
+      updateImagePreview();
     });
   }
 
@@ -463,7 +548,7 @@ final class ARM_Form {
   var patente = $('#arm_patente');
   if(patente){ patente.addEventListener('input', function(){ patente.value = patente.value.toUpperCase(); }); patente.addEventListener('blur', upperPatente); }
 
-  if(imagesInput){ imagesInput.addEventListener('change', updateImagePreview); }
+  if(imagesInput){ imagesInput.addEventListener('change', mergeSelectedFiles); }
 
   // Checklist chips
   $all('.arm-chip input').forEach(function(i){
@@ -486,6 +571,7 @@ final class ARM_Form {
     toggleByTipo();
     trimAll();
     upperPatente();
+    syncInputFiles();
     if(!validateStep(1) || !validateStep(2) || !validateStep(3)){
       e.preventDefault();
       // Lleva a primer paso inválido
@@ -534,6 +620,7 @@ final class ARM_Form {
                 <!-- Paso 1 -->
                 <section class="arm-step is-active" data-step="1">
                     <h2>Cliente</h2>
+                    <p class="arm-help">Completa los datos básicos del cliente y la fecha de recepción.</p>
                     <div class="arm-grid">
                         <div class="arm-field">
                             <label for="arm_fecha_recepcion"><strong>Fecha de recepción</strong><span class="arm-required">*</span></label>
@@ -544,8 +631,8 @@ final class ARM_Form {
                             <input id="arm_cliente" class="arm-input" type="text" name="arm_cliente" required autocomplete="off" autocapitalize="words">
                         </div>
                         <div class="arm-field">
-                            <label for="arm_correo_cliente"><strong>Correo cliente</strong></label>
-                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off">
+                            <label for="arm_correo_cliente"><strong>Correo cliente</strong><span class="arm-required">*</span></label>
+                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off" required>
                         </div>
                     </div>
                 </section>
@@ -553,6 +640,7 @@ final class ARM_Form {
                 <!-- Paso 2 -->
                 <section class="arm-step" data-step="2">
                     <h2>Equipo</h2>
+                    <p class="arm-help">Selecciona tipo y marca para mostrar los campos correspondientes.</p>
 
                     <div class="arm-grid">
                         <div class="arm-field">
@@ -633,15 +721,16 @@ final class ARM_Form {
                 <!-- Paso 3 -->
                 <section class="arm-step" data-step="3">
                     <h2>Detalle</h2>
+                    <p class="arm-help">Describe la falla, marca el checklist y agrega observaciones relevantes.</p>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Falla</h3>
                         <div class="arm-field">
                             <textarea class="arm-textarea" name="arm_falla" rows="3" placeholder="Síntoma + cuándo ocurre + cualquier detalle útil"></textarea>
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Checklist</h3>
                         <div class="arm-inline" style="margin-bottom:10px;">
                             <button type="button" class="arm-btn" data-action="check-all">Marcar todo</button>
@@ -665,14 +754,14 @@ final class ARM_Form {
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Otros</h3>
                         <div class="arm-field">
                             <textarea class="arm-textarea" name="arm_otros" rows="2"></textarea>
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Estado</h3>
 
                         <div class="arm-grid">
@@ -700,19 +789,20 @@ final class ARM_Form {
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <h3>Imágenes (recomendado 3 • máx. 10)</h3>
                         <div class="arm-file">
                             <div class="arm-field">
-                                <input id="arm_images" class="arm-input" type="file" name="arm_imagenes[]" accept="image/*" multiple capture="environment">
+                                <input id="arm_images" class="arm-input" type="file" name="arm_imagenes[]" accept="image/*" multiple>
                                 <div class="arm-sub" style="margin-top:6px;">Sugerencia: 1 general + 1 placa/serie + 1 falla. Máx. 10 fotos.</div>
+                                <div class="arm-sub">Si una imagen es muy pesada, se ajusta el tamaño máximo sin afectar la nitidez.</div>
                                 <div id="arm_img_hint" class="arm-sub" style="margin-top:4px;"></div>
                             </div>
                             <div id="arm_preview" class="arm-preview"></div>
                         </div>
                     </div>
 
-                    <div class="arm-section">
+                    <div class="arm-section is-soft">
                         <div id="arm_summary" class="arm-summary">
                             <h4>Resumen</h4>
                             <dl>
@@ -764,6 +854,9 @@ final class ARM_Form {
         $meta['arm_fecha_recepcion'] = ARM_Utils::sanitize_date($_POST['arm_fecha_recepcion'] ?? '');
         $meta['arm_cliente'] = ARM_Utils::sanitize_text($_POST['arm_cliente'] ?? '');
         $meta['arm_correo_cliente'] = ARM_Utils::sanitize_email($_POST['arm_correo_cliente'] ?? '');
+        if ($meta['arm_correo_cliente'] === '') {
+            $this->redirect_err('Correo cliente es obligatorio');
+        }
         $meta['arm_marca_tractor'] = ($tipo === 'Tractor') ? ARM_Utils::sanitize_text($_POST['arm_marca_tractor'] ?? '') : '';
         $meta['arm_marca_implemento'] = ($tipo === 'Implemento') ? ARM_Utils::sanitize_text($_POST['arm_marca_implemento'] ?? '') : '';
         $meta['arm_modelo'] = ARM_Utils::sanitize_text($_POST['arm_modelo'] ?? '');
@@ -798,8 +891,11 @@ final class ARM_Form {
         }
         update_post_meta($post_id, 'arm_checklist', $checklist);
 
-        // Upload images (máx. 10)
-        $attachments = [];
+        // Upload images (máx. 10) solo para adjuntar en correo
+        $image_paths = [];
+        $image_count = 0;
+        $image_bytes = 0;
+        $image_limit = 10 * 1024 * 1024;
 
         // Nuevo input múltiple: arm_imagenes[]
         if (!empty($_FILES['arm_imagenes']) && is_array($_FILES['arm_imagenes']['name'] ?? null)) {
@@ -821,9 +917,16 @@ final class ARM_Form {
                     'error'    => $errs[$i] ?? UPLOAD_ERR_NO_FILE,
                     'size'     => $sizes[$i] ?? 0,
                 ];
-                $att_id = $this->handle_image_upload_file($file, (int) $post_id);
-                if ($att_id) {
-                    $attachments[] = (int) $att_id;
+                $path = $this->handle_image_upload_temp($file);
+                if ($path) {
+                    $size = (int) @filesize($path);
+                    if ($size > 0 && ($image_bytes + $size) <= $image_limit) {
+                        $image_paths[] = $path;
+                        $image_count++;
+                        $image_bytes += $size;
+                    } else {
+                        $this->cleanup_temp_files([$path]);
+                    }
                 }
             }
         } else {
@@ -831,20 +934,29 @@ final class ARM_Form {
             $image_fields = ['arm_imagen_1','arm_imagen_2','arm_imagen_3'];
             foreach ($image_fields as $f) {
                 if (empty($_FILES[$f]) || empty($_FILES[$f]['name'])) continue;
-                $att_id = $this->handle_image_upload($f, (int) $post_id);
-                if ($att_id) $attachments[] = (int)$att_id;
+                $path = $this->handle_image_upload_temp($_FILES[$f]);
+                if ($path) {
+                    $size = (int) @filesize($path);
+                    if ($size > 0 && ($image_bytes + $size) <= $image_limit) {
+                        $image_paths[] = $path;
+                        $image_count++;
+                        $image_bytes += $size;
+                    } else {
+                        $this->cleanup_temp_files([$path]);
+                    }
+                }
             }
         }
-
-        update_post_meta($post_id, 'arm_imagenes', $attachments);
 
         // Generate PDF
         $pdf = ARM_PDF::generate((int)$post_id);
         update_post_meta($post_id, 'arm_pdf_url', $pdf['url']);
+        update_post_meta($post_id, 'arm_pdf_path', $pdf['path']);
 
-        // Email (failsafe if server has no mail() and no SMTP)
-        $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url']);
+        // Email (sync)
+        $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url'], $image_paths, $image_count);
         update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
+        $this->cleanup_temp_files($image_paths);
 
         // Redirect success
         $url = add_query_arg('arm_ok', (string) $post_id, $this->frontend_url());
@@ -852,50 +964,32 @@ final class ARM_Form {
         exit;
     }
 
-    private function handle_image_upload(string $file_key, int $post_id): int {
-        if (empty($_FILES[$file_key]) || !is_array($_FILES[$file_key])) {
-            return 0;
-        }
-        return $this->handle_image_upload_file($_FILES[$file_key], $post_id);
-    }
-
     /**
-     * Sube una imagen desde un array tipo $_FILES[...]
-     * (se usa para el input múltiple arm_imagenes[])
+     * Guarda una imagen temporal para adjuntar en correo (sin crear adjunto en WP).
      */
-    private function handle_image_upload_file(array $file, int $post_id): int {
+    private function handle_image_upload_temp(array $file): string {
         require_once ABSPATH . 'wp-admin/includes/file.php';
-        require_once ABSPATH . 'wp-admin/includes/image.php';
-        require_once ABSPATH . 'wp-admin/includes/media.php';
 
         if (!isset($file['error']) || (int) $file['error'] !== UPLOAD_ERR_OK) {
-            return 0;
+            return '';
         }
 
         $overrides = ['test_form' => false];
         $uploaded = wp_handle_upload($file, $overrides);
 
         if (isset($uploaded['error'])) {
-            return 0;
+            return '';
         }
 
-        $filetype = wp_check_filetype($uploaded['file'], null);
-        $attachment = [
-            'post_mime_type' => $filetype['type'],
-            'post_title'     => sanitize_file_name(basename($uploaded['file'])),
-            'post_content'   => '',
-            'post_status'    => 'inherit',
-        ];
+        return (string) ($uploaded['file'] ?? '');
+    }
 
-        $attach_id = wp_insert_attachment($attachment, $uploaded['file'], $post_id);
-        if (!$attach_id) {
-            return 0;
+    private function cleanup_temp_files(array $paths): void {
+        foreach ($paths as $path) {
+            if (is_string($path) && $path !== '' && file_exists($path)) {
+                @unlink($path);
+            }
         }
-
-        $attach_data = wp_generate_attachment_metadata($attach_id, $uploaded['file']);
-        wp_update_attachment_metadata($attach_id, $attach_data);
-
-        return (int) $attach_id;
     }
 
     private function redirect_err(string $msg): void {
