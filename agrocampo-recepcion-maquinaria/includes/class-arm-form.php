@@ -426,6 +426,57 @@ final class ARM_Form {
     return [file.name, file.size, file.lastModified].join('|');
   }
 
+  function optimizeImage(file){
+    return new Promise(function(resolve){
+      if(!file || !file.type || file.type.indexOf('image/') !== 0){
+        resolve(file);
+        return;
+      }
+      var maxDim = 2000;
+      var maxSize = 4 * 1024 * 1024;
+      if(file.size <= maxSize){
+        resolve(file);
+        return;
+      }
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function(){
+        var w = img.width;
+        var h = img.height;
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        if(scale >= 1){
+          URL.revokeObjectURL(url);
+          resolve(file);
+          return;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
+        var ctx = canvas.getContext('2d');
+        if(!ctx){
+          URL.revokeObjectURL(url);
+          resolve(file);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function(blob){
+          URL.revokeObjectURL(url);
+          if(!blob){
+            resolve(file);
+            return;
+          }
+          var optimized = new File([blob], file.name, { type: blob.type || file.type, lastModified: file.lastModified });
+          resolve(optimized);
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = function(){
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    });
+  }
+
   function syncInputFiles(){
     if(!imagesInput) return;
     var dt = new DataTransfer();
@@ -468,15 +519,23 @@ final class ARM_Form {
     if(!incoming.length) return;
     var seen = {};
     storedFiles.forEach(function(f){ seen[fileKey(f)] = true; });
+    var chain = Promise.resolve();
     incoming.forEach(function(f){
-      var key = fileKey(f);
-      if(!seen[key]){
-        storedFiles.push(f);
+      chain = chain.then(function(){
+        var key = fileKey(f);
+        if(seen[key]){
+          return null;
+        }
         seen[key] = true;
-      }
+        return optimizeImage(f).then(function(optFile){
+          storedFiles.push(optFile || f);
+        });
+      });
     });
-    syncInputFiles();
-    updateImagePreview();
+    chain.then(function(){
+      syncInputFiles();
+      updateImagePreview();
+    });
   }
 
   // Events
@@ -736,6 +795,7 @@ final class ARM_Form {
                             <div class="arm-field">
                                 <input id="arm_images" class="arm-input" type="file" name="arm_imagenes[]" accept="image/*" multiple>
                                 <div class="arm-sub" style="margin-top:6px;">Sugerencia: 1 general + 1 placa/serie + 1 falla. Máx. 10 fotos.</div>
+                                <div class="arm-sub">Si una imagen es muy pesada, se ajusta el tamaño máximo sin afectar la nitidez.</div>
                                 <div id="arm_img_hint" class="arm-sub" style="margin-top:4px;"></div>
                             </div>
                             <div id="arm_preview" class="arm-preview"></div>
