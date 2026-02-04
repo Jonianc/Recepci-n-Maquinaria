@@ -128,7 +128,8 @@ final class ARM_Form {
             } elseif ($mail_status === 'skipped') {
                 $mail_txt = 'Omitido (sin SMTP)';
             } elseif ($mail_status === 'failed') {
-                $mail_txt = 'Falló';
+                $mail_msg = $id ? (string) get_post_meta($id, 'arm_email_message', true) : '';
+                $mail_txt = $mail_msg ? ('Falló: ' . $mail_msg) : 'Falló';
             }
 
             $out .= '<div class="arm-notice arm-notice--success">'

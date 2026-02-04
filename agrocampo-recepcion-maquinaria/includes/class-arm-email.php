@@ -40,6 +40,14 @@ final class ARM_Email {
             add_filter('wp_mail_from', $from_cb, 99);
         }
 
+        $last_mail_error = '';
+        $mail_failed_cb = function($wp_error) use (&$last_mail_error) {
+            if ($wp_error instanceof \WP_Error) {
+                $last_mail_error = $wp_error->get_error_message();
+            }
+        };
+        add_action('wp_mail_failed', $mail_failed_cb, 99, 1);
+
         $attachments = [];
         if ($pdf_path && file_exists($pdf_path)) $attachments[] = $pdf_path;
 
@@ -65,6 +73,7 @@ final class ARM_Email {
             if ($from_cb) {
                 remove_filter('wp_mail_from', $from_cb, 99);
             }
+            remove_action('wp_mail_failed', $mail_failed_cb, 99);
             return [
                 'status' => 'skipped',
                 'message' => $msg,
@@ -92,14 +101,19 @@ final class ARM_Email {
         if ($from_cb) {
             remove_filter('wp_mail_from', $from_cb, 99);
         }
+        remove_action('wp_mail_failed', $mail_failed_cb, 99);
 
         $status = ($internal_sent || $client_sent) ? 'sent' : 'failed';
         update_post_meta($post_id, 'arm_email_status', $status);
-        update_post_meta($post_id, 'arm_email_message', $status === 'failed' ? 'wp_mail() devolvió false' : '');
+        $error_message = '';
+        if ($status === 'failed') {
+            $error_message = $last_mail_error !== '' ? $last_mail_error : 'wp_mail() devolvió false';
+        }
+        update_post_meta($post_id, 'arm_email_message', $error_message);
 
         return [
             'status' => $status,
-            'message' => $status === 'failed' ? 'wp_mail() devolvió false' : '',
+            'message' => $error_message,
             'internal_sent' => $internal_sent,
             'client_sent' => $client_sent,
         ];
