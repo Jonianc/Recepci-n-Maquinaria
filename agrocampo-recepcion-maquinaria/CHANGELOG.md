@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.4
+- Corrige navegación de pestañas en ajustes bajo Recepciones.
+
 ## 1.1.3
 - Unifica el menú: la configuración queda bajo Recepciones como submenú.
 

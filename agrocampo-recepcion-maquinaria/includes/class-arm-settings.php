@@ -116,7 +116,17 @@ final class ARM_Settings {
             <h1>Recepción de Maquinaria</h1>
             <h2 class="nav-tab-wrapper">
                 <?php foreach ($tabs as $key => $label) : ?>
-                    <a class="nav-tab <?php echo $tab === $key ? 'nav-tab-active' : ''; ?>" href="<?php echo esc_url(add_query_arg('tab', $key, menu_page_url('arm-settings', false))); ?>">
+                    <?php
+                    $tab_url = add_query_arg(
+                        [
+                            'post_type' => ARM_CPT::POST_TYPE,
+                            'page' => 'arm-settings',
+                            'tab' => $key,
+                        ],
+                        admin_url('edit.php')
+                    );
+                    ?>
+                    <a class="nav-tab <?php echo $tab === $key ? 'nav-tab-active' : ''; ?>" href="<?php echo esc_url($tab_url); ?>">
                         <?php echo esc_html($label); ?>
                     </a>
                 <?php endforeach; ?>
