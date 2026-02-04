@@ -7,6 +7,9 @@ if (!defined('ABSPATH')) { exit; }
 // Some sites load FPDF from other plugins/themes. Including it unconditionally triggers:
 // "Cannot declare class FPDF, because the name is already in use".
 // We load it only if the class is not already defined.
+if (!class_exists('\\FPDF', false)) {
+    require_once ARM_PLUGIN_DIR . 'lib/fpdf/fpdf.php';
+}
 
 final class ARM_PDF {
 
