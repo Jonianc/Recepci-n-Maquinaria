@@ -34,14 +34,6 @@ final class ARM_Settings {
             'dashicons-clipboard',
             26
         );
-        add_submenu_page(
-            'arm-settings',
-            'Ajustes',
-            'Ajustes',
-            'manage_options',
-            'arm-settings',
-            [$this, 'render']
-        );
     }
 
     public function register_settings(): void {
