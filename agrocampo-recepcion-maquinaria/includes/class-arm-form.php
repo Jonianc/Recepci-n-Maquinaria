@@ -72,7 +72,6 @@ final class ARM_Form {
 
         // Handler de envío
         add_action('init', [$this, 'handle_post']);
-        add_action('arm_send_email_async', [$this, 'send_email_async'], 10, 1);
     }
 
     public function add_query_vars(array $vars): array {
@@ -123,8 +122,6 @@ final class ARM_Form {
             $mail_txt = '—';
             if ($mail_status === 'sent') {
                 $mail_txt = 'Enviado';
-            } elseif ($mail_status === 'queued') {
-                $mail_txt = 'En cola de envío';
             } elseif ($mail_status === 'skipped') {
                 $mail_txt = 'Omitido (sin SMTP)';
             } elseif ($mail_status === 'failed') {
@@ -634,8 +631,8 @@ final class ARM_Form {
                             <input id="arm_cliente" class="arm-input" type="text" name="arm_cliente" required autocomplete="off" autocapitalize="words">
                         </div>
                         <div class="arm-field">
-                            <label for="arm_correo_cliente"><strong>Correo cliente</strong></label>
-                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off">
+                            <label for="arm_correo_cliente"><strong>Correo cliente</strong><span class="arm-required">*</span></label>
+                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off" required>
                         </div>
                     </div>
                 </section>
@@ -857,6 +854,9 @@ final class ARM_Form {
         $meta['arm_fecha_recepcion'] = ARM_Utils::sanitize_date($_POST['arm_fecha_recepcion'] ?? '');
         $meta['arm_cliente'] = ARM_Utils::sanitize_text($_POST['arm_cliente'] ?? '');
         $meta['arm_correo_cliente'] = ARM_Utils::sanitize_email($_POST['arm_correo_cliente'] ?? '');
+        if ($meta['arm_correo_cliente'] === '') {
+            $this->redirect_err('Correo cliente es obligatorio');
+        }
         $meta['arm_marca_tractor'] = ($tipo === 'Tractor') ? ARM_Utils::sanitize_text($_POST['arm_marca_tractor'] ?? '') : '';
         $meta['arm_marca_implemento'] = ($tipo === 'Implemento') ? ARM_Utils::sanitize_text($_POST['arm_marca_implemento'] ?? '') : '';
         $meta['arm_modelo'] = ARM_Utils::sanitize_text($_POST['arm_modelo'] ?? '');
@@ -952,18 +952,11 @@ final class ARM_Form {
         $pdf = ARM_PDF::generate((int)$post_id);
         update_post_meta($post_id, 'arm_pdf_url', $pdf['url']);
         update_post_meta($post_id, 'arm_pdf_path', $pdf['path']);
-        update_post_meta($post_id, 'arm_email_image_paths', $image_paths);
-        update_post_meta($post_id, 'arm_email_image_count', $image_count);
 
-        // Email (async)
-        $queued = wp_schedule_single_event(time() + 5, 'arm_send_email_async', [(int) $post_id]);
-        if ($queued) {
-            update_post_meta($post_id, 'arm_email_status', 'queued');
-        } else {
-            $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url'], $image_paths, $image_count);
-            update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
-            $this->cleanup_temp_files($image_paths);
-        }
+        // Email (sync)
+        $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url'], $image_paths, $image_count);
+        update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
+        $this->cleanup_temp_files($image_paths);
 
         // Redirect success
         $url = add_query_arg('arm_ok', (string) $post_id, $this->frontend_url());
@@ -997,22 +990,6 @@ final class ARM_Form {
                 @unlink($path);
             }
         }
-    }
-
-    public function send_email_async(int $post_id): void {
-        $pdf_path = (string) get_post_meta($post_id, 'arm_pdf_path', true);
-        $pdf_url = (string) get_post_meta($post_id, 'arm_pdf_url', true);
-        $image_paths = get_post_meta($post_id, 'arm_email_image_paths', true);
-        $image_count = (int) get_post_meta($post_id, 'arm_email_image_count', true);
-        if (!is_array($image_paths)) {
-            $image_paths = [];
-        }
-
-        $mail_res = ARM_Email::send((int)$post_id, $pdf_path, $pdf_url, $image_paths, $image_count);
-        update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
-        $this->cleanup_temp_files($image_paths);
-        delete_post_meta($post_id, 'arm_email_image_paths');
-        delete_post_meta($post_id, 'arm_email_image_count');
     }
 
     private function redirect_err(string $msg): void {
