@@ -437,8 +437,8 @@ final class ARM_Form {
         resolve(file);
         return;
       }
-      var maxDim = 1200;
-      var maxSize = 900 * 1024;
+      var maxDim = 1000;
+      var maxSize = 600 * 1024;
       var img = new Image();
       var url = URL.createObjectURL(file);
       img.onload = function(){
@@ -469,7 +469,7 @@ final class ARM_Form {
           }
           var optimized = new File([blob], file.name, { type: blob.type || file.type, lastModified: file.lastModified });
           resolve(optimized);
-        }, 'image/jpeg', 0.8);
+        }, 'image/jpeg', 0.72);
       };
       img.onerror = function(){
         URL.revokeObjectURL(url);
