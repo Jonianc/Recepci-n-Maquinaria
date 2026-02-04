@@ -432,19 +432,16 @@ final class ARM_Form {
         resolve(file);
         return;
       }
-      var maxDim = 2000;
-      var maxSize = 4 * 1024 * 1024;
-      if(file.size <= maxSize){
-        resolve(file);
-        return;
-      }
+      var maxDim = 1600;
+      var maxSize = 1.5 * 1024 * 1024;
       var img = new Image();
       var url = URL.createObjectURL(file);
       img.onload = function(){
         var w = img.width;
         var h = img.height;
-        var scale = Math.min(1, maxDim / Math.max(w, h));
-        if(scale >= 1){
+        var maxSide = Math.max(w, h);
+        var scale = Math.min(1, maxDim / maxSide);
+        if(scale >= 1 && file.size <= maxSize){
           URL.revokeObjectURL(url);
           resolve(file);
           return;
@@ -467,7 +464,7 @@ final class ARM_Form {
           }
           var optimized = new File([blob], file.name, { type: blob.type || file.type, lastModified: file.lastModified });
           resolve(optimized);
-        }, 'image/jpeg', 0.92);
+        }, 'image/jpeg', 0.85);
       };
       img.onerror = function(){
         URL.revokeObjectURL(url);
@@ -572,6 +569,7 @@ final class ARM_Form {
     toggleByTipo();
     trimAll();
     upperPatente();
+    syncInputFiles();
     if(!validateStep(1) || !validateStep(2) || !validateStep(3)){
       e.preventDefault();
       // Lleva a primer paso inválido
@@ -888,8 +886,9 @@ final class ARM_Form {
         }
         update_post_meta($post_id, 'arm_checklist', $checklist);
 
-        // Upload images (máx. 10)
-        $attachments = [];
+        // Upload images (máx. 10) solo para adjuntar en correo
+        $image_paths = [];
+        $image_count = 0;
 
         // Nuevo input múltiple: arm_imagenes[]
         if (!empty($_FILES['arm_imagenes']) && is_array($_FILES['arm_imagenes']['name'] ?? null)) {
@@ -911,9 +910,10 @@ final class ARM_Form {
                     'error'    => $errs[$i] ?? UPLOAD_ERR_NO_FILE,
                     'size'     => $sizes[$i] ?? 0,
                 ];
-                $att_id = $this->handle_image_upload_file($file, (int) $post_id);
-                if ($att_id) {
-                    $attachments[] = (int) $att_id;
+                $path = $this->handle_image_upload_temp($file);
+                if ($path) {
+                    $image_paths[] = $path;
+                    $image_count++;
                 }
             }
         } else {
@@ -921,20 +921,22 @@ final class ARM_Form {
             $image_fields = ['arm_imagen_1','arm_imagen_2','arm_imagen_3'];
             foreach ($image_fields as $f) {
                 if (empty($_FILES[$f]) || empty($_FILES[$f]['name'])) continue;
-                $att_id = $this->handle_image_upload($f, (int) $post_id);
-                if ($att_id) $attachments[] = (int)$att_id;
+                $path = $this->handle_image_upload_temp($_FILES[$f]);
+                if ($path) {
+                    $image_paths[] = $path;
+                    $image_count++;
+                }
             }
         }
-
-        update_post_meta($post_id, 'arm_imagenes', $attachments);
 
         // Generate PDF
         $pdf = ARM_PDF::generate((int)$post_id);
         update_post_meta($post_id, 'arm_pdf_url', $pdf['url']);
 
         // Email (failsafe if server has no mail() and no SMTP)
-        $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url']);
+        $mail_res = ARM_Email::send((int)$post_id, $pdf['path'], $pdf['url'], $image_paths, $image_count);
         update_post_meta($post_id, 'arm_email_status', (string) ($mail_res['status'] ?? 'unknown'));
+        $this->cleanup_temp_files($image_paths);
 
         // Redirect success
         $url = add_query_arg('arm_ok', (string) $post_id, $this->frontend_url());
@@ -942,50 +944,32 @@ final class ARM_Form {
         exit;
     }
 
-    private function handle_image_upload(string $file_key, int $post_id): int {
-        if (empty($_FILES[$file_key]) || !is_array($_FILES[$file_key])) {
-            return 0;
-        }
-        return $this->handle_image_upload_file($_FILES[$file_key], $post_id);
-    }
-
     /**
-     * Sube una imagen desde un array tipo $_FILES[...]
-     * (se usa para el input múltiple arm_imagenes[])
+     * Guarda una imagen temporal para adjuntar en correo (sin crear adjunto en WP).
      */
-    private function handle_image_upload_file(array $file, int $post_id): int {
+    private function handle_image_upload_temp(array $file): string {
         require_once ABSPATH . 'wp-admin/includes/file.php';
-        require_once ABSPATH . 'wp-admin/includes/image.php';
-        require_once ABSPATH . 'wp-admin/includes/media.php';
 
         if (!isset($file['error']) || (int) $file['error'] !== UPLOAD_ERR_OK) {
-            return 0;
+            return '';
         }
 
         $overrides = ['test_form' => false];
         $uploaded = wp_handle_upload($file, $overrides);
 
         if (isset($uploaded['error'])) {
-            return 0;
+            return '';
         }
 
-        $filetype = wp_check_filetype($uploaded['file'], null);
-        $attachment = [
-            'post_mime_type' => $filetype['type'],
-            'post_title'     => sanitize_file_name(basename($uploaded['file'])),
-            'post_content'   => '',
-            'post_status'    => 'inherit',
-        ];
+        return (string) ($uploaded['file'] ?? '');
+    }
 
-        $attach_id = wp_insert_attachment($attachment, $uploaded['file'], $post_id);
-        if (!$attach_id) {
-            return 0;
+    private function cleanup_temp_files(array $paths): void {
+        foreach ($paths as $path) {
+            if (is_string($path) && $path !== '' && file_exists($path)) {
+                @unlink($path);
+            }
         }
-
-        $attach_data = wp_generate_attachment_metadata($attach_id, $uploaded['file']);
-        wp_update_attachment_metadata($attach_id, $attach_data);
-
-        return (int) $attach_id;
     }
 
     private function redirect_err(string $msg): void {
