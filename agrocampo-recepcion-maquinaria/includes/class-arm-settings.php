@@ -25,14 +25,13 @@ final class ARM_Settings {
 }
 
     public function menu(): void {
-        add_menu_page(
-            'Recepción Maquinaria - Agrocampo',
+        add_submenu_page(
+            'edit.php?post_type=' . ARM_CPT::POST_TYPE,
+            'Recepción Maquinaria - Ajustes',
             'Recepción Maquinaria',
             'manage_options',
             'arm-settings',
-            [$this, 'render'],
-            'dashicons-clipboard',
-            26
+            [$this, 'render']
         );
     }
 
