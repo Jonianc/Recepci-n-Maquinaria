@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.6
+- Elimina la navegación por pestañas en Ajustes y muestra General, Correos, PDF y Ayuda en una sola pantalla.
+- Mantiene un único botón “Guardar cambios” para todo el formulario.
+- Registra el slug frontend como ajuste para evitar sobrescrituras entre secciones.
+- Asegura persistencia correcta de "Enviar al cliente" cuando el checkbox está desmarcado.
+
 ## 1.1.5
 - Corrige la carga de la Librería de Medios en Ajustes bajo Recepciones.
 

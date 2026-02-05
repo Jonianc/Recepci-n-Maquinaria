@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Agrocampo - Recepción de Maquinaria
  * Description: Formulario de recepción de maquinaria con PDF (FPDF) y envío por correo.
- * Version: 1.1.5
+ * Version: 1.1.6
  * Author: Agrocampo / Rocket Solutions
  * Requires at least: 5.8
  * Requires PHP: 7.4
@@ -11,7 +11,7 @@
 
 if (!defined('ABSPATH')) { exit; }
 
-define('ARM_PLUGIN_VERSION', '1.1.5');
+define('ARM_PLUGIN_VERSION', '1.1.6');
 define('ARM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ARM_PLUGIN_URL', plugin_dir_url(__FILE__));
 

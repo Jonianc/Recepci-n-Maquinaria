@@ -36,6 +36,15 @@ final class ARM_Settings {
     }
 
     public function register_settings(): void {
+        register_setting('arm_settings_group', self::OPT_FRONT_SLUG, [
+            'type' => 'string',
+            'sanitize_callback' => function($v){
+                $slug = sanitize_title(is_string($v) ? $v : '');
+                return $slug !== '' ? $slug : 'recepcion-maquinaria';
+            },
+            'default' => 'recepcion-maquinaria',
+        ]);
+
         register_setting('arm_settings_group', self::OPT_LOGO_ID, [
             'type' => 'integer',
             'sanitize_callback' => 'absint',
@@ -103,114 +112,93 @@ final class ARM_Settings {
 
         $logo_id = absint(get_option(self::OPT_LOGO_ID, 0));
         $logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'medium') : '';
-        $tab = isset($_GET['tab']) ? sanitize_key((string) $_GET['tab']) : 'general';
-        $tabs = [
-            'general' => 'General',
-            'correo' => 'Correos',
-            'pdf' => 'PDF',
-            'ayuda' => 'Ayuda',
-        ];
 
         ?>
         <div class="wrap">
             <h1>Recepción de Maquinaria</h1>
-            <h2 class="nav-tab-wrapper">
-                <?php foreach ($tabs as $key => $label) : ?>
-                    <?php
-                    $tab_url = add_query_arg(
-                        [
-                            'post_type' => ARM_CPT::POST_TYPE,
-                            'page' => 'arm-settings',
-                            'tab' => $key,
-                        ],
-                        admin_url('edit.php')
-                    );
-                    ?>
-                    <a class="nav-tab <?php echo $tab === $key ? 'nav-tab-active' : ''; ?>" href="<?php echo esc_url($tab_url); ?>">
-                        <?php echo esc_html($label); ?>
-                    </a>
-                <?php endforeach; ?>
-            </h2>
             <form method="post" action="options.php">
                 <?php settings_fields('arm_settings_group'); ?>
 
-                <?php if ($tab === 'general') : ?>
-                    <table class="form-table" role="presentation">
-                        <tr>
-                            <th scope="row">Ruta de acceso (frontend)</th>
-                            <td>
-                                <input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_FRONT_SLUG); ?>" value="<?php echo esc_attr(get_option(self::OPT_FRONT_SLUG, 'recepcion-maquinaria')); ?>" placeholder="recepcion-maquinaria">
-                                <p class="description">URL: <code><?php echo esc_html(trailingslashit(home_url('/' . sanitize_title(get_option(self::OPT_FRONT_SLUG, 'recepcion-maquinaria'))))); ?></code></p>
-                                <p class="description">Vista standalone (sin theme). Al cambiar el slug se actualizan los permalinks.</p>
-                            </td>
-                        </tr>
-                    </table>
-                <?php elseif ($tab === 'correo') : ?>
-                    <table class="form-table" role="presentation">
-                        <tr>
-                            <th scope="row">Correos internos</th>
-                            <td>
-                                <textarea name="<?php echo esc_attr(self::OPT_INTERNAL_EMAILS); ?>" rows="3" class="large-text" placeholder="correo1@dominio.cl, correo2@dominio.cl"><?php echo esc_textarea(get_option(self::OPT_INTERNAL_EMAILS, '')); ?></textarea>
-                                <p class="description">Separar por coma, punto y coma o saltos de línea.</p>
-                            </td>
-                        </tr>
+                <h2>General</h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">Ruta de acceso (frontend)</th>
+                        <td>
+                            <input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_FRONT_SLUG); ?>" value="<?php echo esc_attr(get_option(self::OPT_FRONT_SLUG, 'recepcion-maquinaria')); ?>" placeholder="recepcion-maquinaria">
+                            <p class="description">URL: <code><?php echo esc_html(trailingslashit(home_url('/' . sanitize_title(get_option(self::OPT_FRONT_SLUG, 'recepcion-maquinaria'))))); ?></code></p>
+                            <p class="description">Vista standalone (sin theme). Al cambiar el slug se actualizan los permalinks.</p>
+                        </td>
+                    </tr>
+                </table>
 
-                        <tr>
-                            <th scope="row">Enviar al cliente</th>
-                            <td>
-                                <label>
-                                    <input type="checkbox" name="<?php echo esc_attr(self::OPT_SEND_TO_CLIENT); ?>" value="1" <?php checked(1, absint(get_option(self::OPT_SEND_TO_CLIENT, 1))); ?>>
-                                    Sí, enviar copia al correo del cliente (si fue ingresado)
-                                </label>
-                            </td>
-                        </tr>
+                <hr>
+                <h2>Correos</h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">Correos internos</th>
+                        <td>
+                            <textarea name="<?php echo esc_attr(self::OPT_INTERNAL_EMAILS); ?>" rows="3" class="large-text" placeholder="correo1@dominio.cl, correo2@dominio.cl"><?php echo esc_textarea(get_option(self::OPT_INTERNAL_EMAILS, '')); ?></textarea>
+                            <p class="description">Separar por coma, punto y coma o saltos de línea.</p>
+                        </td>
+                    </tr>
 
-                        <tr>
-                            <th scope="row">Nombre remitente</th>
-                            <td>
-                                <input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_FROM_NAME); ?>" value="<?php echo esc_attr(get_option(self::OPT_FROM_NAME, 'Agrocampo')); ?>">
-                            </td>
-                        </tr>
+                    <tr>
+                        <th scope="row">Enviar al cliente</th>
+                        <td>
+                            <input type="hidden" name="<?php echo esc_attr(self::OPT_SEND_TO_CLIENT); ?>" value="0">
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr(self::OPT_SEND_TO_CLIENT); ?>" value="1" <?php checked(1, absint(get_option(self::OPT_SEND_TO_CLIENT, 1))); ?>>
+                                Sí, enviar copia al correo del cliente (si fue ingresado)
+                            </label>
+                        </td>
+                    </tr>
 
-                        <tr>
-                            <th scope="row">Reply-To</th>
-                            <td>
-                                <input type="email" class="regular-text" name="<?php echo esc_attr(self::OPT_REPLY_TO); ?>" value="<?php echo esc_attr(get_option(self::OPT_REPLY_TO, '')); ?>" placeholder="postventa@agrocampo.cl">
-                                <p class="description">Si queda vacío, se usa el correo del sitio.</p>
-                            </td>
-                        </tr>
-                    </table>
-                <?php elseif ($tab === 'pdf') : ?>
-                    <table class="form-table" role="presentation">
-                        <tr>
-                            <th scope="row">Logo (PDF)</th>
-                            <td>
-                                <input type="hidden" id="arm_logo_id" name="<?php echo esc_attr(self::OPT_LOGO_ID); ?>" value="<?php echo esc_attr($logo_id); ?>">
-                                <button type="button" class="button" id="arm_logo_pick">Seleccionar logo</button>
-                                <button type="button" class="button" id="arm_logo_clear">Quitar</button>
-                                <div style="margin-top:10px;">
-                                    <img id="arm_logo_preview" src="<?php echo esc_url($logo_url); ?>" style="max-width:260px; height:auto; <?php echo $logo_url ? '' : 'display:none;'; ?>">
-                                </div>
-                                <p class="description">Se usa en el encabezado del PDF. Recomendado PNG transparente.</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Pie PDF</th>
-                            <td>
-                                <textarea name="<?php echo esc_attr(self::OPT_PDF_FOOTER); ?>" rows="3" class="large-text"><?php echo esc_textarea(get_option(self::OPT_PDF_FOOTER, 'Talca - Linares - Parral | +56 9 9748 5650')); ?></textarea>
-                                <p class="description">Se imprime centrado al final del PDF.</p>
-                            </td>
-                        </tr>
-                    </table>
-                <?php else : ?>
-                    <h2>Uso</h2>
-                    <p>Inserta el formulario en cualquier página con el shortcode:</p>
-                    <code>[agrocampo_recepcion_maquinaria]</code>
-                <?php endif; ?>
+                    <tr>
+                        <th scope="row">Nombre remitente</th>
+                        <td>
+                            <input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_FROM_NAME); ?>" value="<?php echo esc_attr(get_option(self::OPT_FROM_NAME, 'Agrocampo')); ?>">
+                        </td>
+                    </tr>
 
-                <?php if ($tab !== 'ayuda') : ?>
-                    <?php submit_button(); ?>
-                <?php endif; ?>
+                    <tr>
+                        <th scope="row">Reply-To</th>
+                        <td>
+                            <input type="email" class="regular-text" name="<?php echo esc_attr(self::OPT_REPLY_TO); ?>" value="<?php echo esc_attr(get_option(self::OPT_REPLY_TO, '')); ?>" placeholder="postventa@agrocampo.cl">
+                            <p class="description">Si queda vacío, se usa el correo del sitio.</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <hr>
+                <h2>PDF</h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">Logo (PDF)</th>
+                        <td>
+                            <input type="hidden" id="arm_logo_id" name="<?php echo esc_attr(self::OPT_LOGO_ID); ?>" value="<?php echo esc_attr($logo_id); ?>">
+                            <button type="button" class="button" id="arm_logo_pick">Seleccionar logo</button>
+                            <button type="button" class="button" id="arm_logo_clear">Quitar</button>
+                            <div style="margin-top:10px;">
+                                <img id="arm_logo_preview" src="<?php echo esc_url($logo_url); ?>" style="max-width:260px; height:auto; <?php echo $logo_url ? '' : 'display:none;'; ?>">
+                            </div>
+                            <p class="description">Se usa en el encabezado del PDF. Recomendado PNG transparente.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Pie PDF</th>
+                        <td>
+                            <textarea name="<?php echo esc_attr(self::OPT_PDF_FOOTER); ?>" rows="3" class="large-text"><?php echo esc_textarea(get_option(self::OPT_PDF_FOOTER, 'Talca - Linares - Parral | +56 9 9748 5650')); ?></textarea>
+                            <p class="description">Se imprime centrado al final del PDF.</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <hr>
+                <h2>Ayuda</h2>
+                <p>Inserta el formulario en cualquier página con el shortcode:</p>
+                <code>[agrocampo_recepcion_maquinaria]</code>
+
+                <?php submit_button('Guardar cambios'); ?>
             </form>
         </div>
         <?php
