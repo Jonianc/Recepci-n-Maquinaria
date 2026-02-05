@@ -87,7 +87,7 @@ final class ARM_Settings {
     }
 
     public function enqueue_admin_assets($hook): void {
-        if ($hook !== 'settings_page_arm-settings') return;
+        if ($hook !== 'arm_recepcion_page_arm-settings') return;
         wp_enqueue_media();
         wp_enqueue_script(
             'arm-admin',

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.5
+- Corrige la carga de la Librería de Medios en Ajustes bajo Recepciones.
+
 ## 1.1.4
 - Corrige navegación de pestañas en ajustes bajo Recepciones.
 
