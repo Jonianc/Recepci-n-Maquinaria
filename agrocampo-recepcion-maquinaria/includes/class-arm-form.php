@@ -631,8 +631,8 @@ final class ARM_Form {
                             <input id="arm_cliente" class="arm-input" type="text" name="arm_cliente" required autocomplete="off" autocapitalize="words">
                         </div>
                         <div class="arm-field">
-                            <label for="arm_correo_cliente"><strong>Correo cliente</strong><span class="arm-required">*</span></label>
-                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off" required>
+                            <label for="arm_correo_cliente"><strong>Correo cliente</strong></label>
+                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off">
                         </div>
                     </div>
                 </section>
@@ -853,10 +853,13 @@ final class ARM_Form {
         $meta['arm_tipo_implemento'] = ($tipo === 'Implemento') ? ARM_Utils::sanitize_text($_POST['arm_tipo_implemento'] ?? '') : '';
         $meta['arm_fecha_recepcion'] = ARM_Utils::sanitize_date($_POST['arm_fecha_recepcion'] ?? '');
         $meta['arm_cliente'] = ARM_Utils::sanitize_text($_POST['arm_cliente'] ?? '');
-        $meta['arm_correo_cliente'] = ARM_Utils::sanitize_email($_POST['arm_correo_cliente'] ?? '');
-        if ($meta['arm_correo_cliente'] === '') {
-            $this->redirect_err('Correo cliente es obligatorio');
+
+        $client_email_raw = isset($_POST['arm_correo_cliente']) ? trim((string) $_POST['arm_correo_cliente']) : '';
+        $meta['arm_correo_cliente'] = ARM_Utils::sanitize_email($client_email_raw);
+        if ($client_email_raw !== '' && $meta['arm_correo_cliente'] === '') {
+            $this->redirect_err('Correo cliente inválido');
         }
+
         $meta['arm_marca_tractor'] = ($tipo === 'Tractor') ? ARM_Utils::sanitize_text($_POST['arm_marca_tractor'] ?? '') : '';
         $meta['arm_marca_implemento'] = ($tipo === 'Implemento') ? ARM_Utils::sanitize_text($_POST['arm_marca_implemento'] ?? '') : '';
         $meta['arm_modelo'] = ARM_Utils::sanitize_text($_POST['arm_modelo'] ?? '');

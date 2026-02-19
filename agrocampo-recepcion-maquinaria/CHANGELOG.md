@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.7
+- Hace opcional el campo "Correo cliente" en el formulario de recepción.
+- Si se ingresa correo de cliente, valida formato y muestra error si es inválido.
+- Mantiene envío al cliente solo cuando hay correo válido y la opción está habilitada.
+
 ## 1.1.6
 - Elimina la navegación por pestañas en Ajustes y muestra General, Correos, PDF y Ayuda en una sola pantalla.
 - Mantiene un único botón “Guardar cambios” para todo el formulario.
