@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.8
+- Agrega configuración en Ajustes para controlar visibilidad y obligatoriedad de campos del formulario (excepto campos estructurales).
+- Aplica la configuración tanto en frontend (mostrar/ocultar + required) como en validación backend al guardar la recepción.
+
 ## 1.1.7
 - Hace opcional el campo "Correo cliente" en el formulario de recepción.
 - Si se ingresa correo de cliente, valida formato y muestra error si es inválido.

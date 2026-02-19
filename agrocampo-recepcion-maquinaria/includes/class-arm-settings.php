@@ -13,6 +13,7 @@ final class ARM_Settings {
     const OPT_PDF_FOOTER       = 'arm_pdf_footer';
 
     const OPT_FRONT_SLUG       = 'arm_front_slug';
+    const OPT_FORM_FIELDS      = 'arm_form_fields';
     public function __construct() {
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_init', [$this, 'register_settings']);
@@ -43,6 +44,12 @@ final class ARM_Settings {
                 return $slug !== '' ? $slug : 'recepcion-maquinaria';
             },
             'default' => 'recepcion-maquinaria',
+        ]);
+
+        register_setting('arm_settings_group', self::OPT_FORM_FIELDS, [
+            'type' => 'array',
+            'sanitize_callback' => [$this, 'sanitize_form_fields'],
+            'default' => [],
         ]);
 
         register_setting('arm_settings_group', self::OPT_LOGO_ID, [
@@ -93,6 +100,29 @@ final class ARM_Settings {
         // Mantiene letras, números, espacios y puntuación común.
         $v = preg_replace('/[^\p{L}\p{N}\s\-\|\+\.,:;\(\)\/]/u', '', $v);
         return trim((string)$v);
+    }
+
+    public function sanitize_form_fields($value): array {
+        $schema = ARM_Form::get_configurable_fields_schema();
+        $sanitized = [];
+
+        foreach ($schema as $key => $field) {
+            $row = is_array($value) && isset($value[$key]) && is_array($value[$key]) ? $value[$key] : [];
+            $visible = isset($row['visible']) ? absint($row['visible']) : 1;
+            $required = isset($row['required']) ? absint($row['required']) : (!empty($field['default_required']) ? 1 : 0);
+
+            if ($visible !== 1) {
+                $visible = 0;
+                $required = 0;
+            }
+
+            $sanitized[$key] = [
+                'visible' => $visible,
+                'required' => $required === 1 ? 1 : 0,
+            ];
+        }
+
+        return $sanitized;
     }
 
     public function enqueue_admin_assets($hook): void {
@@ -189,6 +219,50 @@ final class ARM_Settings {
                         <td>
                             <textarea name="<?php echo esc_attr(self::OPT_PDF_FOOTER); ?>" rows="3" class="large-text"><?php echo esc_textarea(get_option(self::OPT_PDF_FOOTER, 'Talca - Linares - Parral | +56 9 9748 5650')); ?></textarea>
                             <p class="description">Se imprime centrado al final del PDF.</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <hr>
+                <h2>Campos del formulario</h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">Configuración de campos</th>
+                        <td>
+                            <p class="description">Los campos estructurales siempre se muestran. Aquí puedes definir visibilidad y obligatoriedad del resto de campos.</p>
+                            <?php $form_fields = ARM_Form::get_field_settings(); ?>
+                            <table class="widefat striped" style="max-width:780px; margin-top:10px;">
+                                <thead>
+                                    <tr>
+                                        <th>Campo</th>
+                                        <th>Visible</th>
+                                        <th>Obligatorio</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach (ARM_Form::get_configurable_fields_schema() as $field_key => $field) :
+                                        $state = $form_fields[$field_key] ?? ['visible' => 1, 'required' => 0];
+                                    ?>
+                                    <tr>
+                                        <td><?php echo esc_html($field['label']); ?></td>
+                                        <td>
+                                            <input type="hidden" name="<?php echo esc_attr(self::OPT_FORM_FIELDS . '[' . $field_key . '][visible]'); ?>" value="0">
+                                            <label>
+                                                <input type="checkbox" name="<?php echo esc_attr(self::OPT_FORM_FIELDS . '[' . $field_key . '][visible]'); ?>" value="1" <?php checked(1, absint($state['visible'] ?? 1)); ?>>
+                                                Mostrar
+                                            </label>
+                                        </td>
+                                        <td>
+                                            <input type="hidden" name="<?php echo esc_attr(self::OPT_FORM_FIELDS . '[' . $field_key . '][required]'); ?>" value="0">
+                                            <label>
+                                                <input type="checkbox" name="<?php echo esc_attr(self::OPT_FORM_FIELDS . '[' . $field_key . '][required]'); ?>" value="1" <?php checked(1, absint($state['required'] ?? 0)); ?>>
+                                                Requerido
+                                            </label>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         </td>
                     </tr>
                 </table>

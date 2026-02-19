@@ -34,6 +34,48 @@ final class ARM_Form {
         ];
     }
 
+
+    public static function get_configurable_fields_schema(): array {
+        return [
+            'arm_cliente' => ['label' => 'Cliente', 'default_required' => 1],
+            'arm_correo_cliente' => ['label' => 'Correo cliente', 'default_required' => 0],
+            'arm_modelo' => ['label' => 'Modelo', 'default_required' => 0],
+            'arm_interno' => ['label' => 'Interno', 'default_required' => 0],
+            'arm_serie' => ['label' => 'Serie', 'default_required' => 0],
+            'arm_patente' => ['label' => 'Patente', 'default_required' => 0],
+            'arm_horas' => ['label' => 'Horas', 'default_required' => 0],
+            'arm_falla' => ['label' => 'Falla reportada', 'default_required' => 0],
+            'arm_otros' => ['label' => 'Otros', 'default_required' => 0],
+            'arm_llaves' => ['label' => 'Llaves', 'default_required' => 0],
+            'arm_nivel_combustible' => ['label' => 'Nivel de combustible', 'default_required' => 0],
+            'arm_observaciones' => ['label' => 'Observaciones', 'default_required' => 0],
+            'arm_checklist' => ['label' => 'Checklist', 'default_required' => 0],
+            'arm_imagenes' => ['label' => 'Imágenes', 'default_required' => 0],
+        ];
+    }
+
+    public static function get_field_settings(): array {
+        $schema = self::get_configurable_fields_schema();
+        $saved = get_option(ARM_Settings::OPT_FORM_FIELDS, []);
+        $out = [];
+
+        foreach ($schema as $key => $field) {
+            $row = is_array($saved) && isset($saved[$key]) && is_array($saved[$key]) ? $saved[$key] : [];
+            $visible = isset($row['visible']) ? absint($row['visible']) : 1;
+            $required = isset($row['required']) ? absint($row['required']) : (!empty($field['default_required']) ? 1 : 0);
+            if ($visible !== 1) {
+                $visible = 0;
+                $required = 0;
+            }
+            $out[$key] = [
+                'visible' => $visible,
+                'required' => $required === 1 ? 1 : 0,
+            ];
+        }
+
+        return $out;
+    }
+
     /**
      * Devuelve un array con los datos guardados en el CPT (post_meta).
      * Se usa para generar el PDF y correos sin depender de $_POST.
@@ -601,6 +643,20 @@ final class ARM_Form {
     }
 
     private function render_form(string $msg = ''): string {
+        $field_settings = self::get_field_settings();
+        $is_visible = static function(string $key) use ($field_settings): bool {
+            return !empty($field_settings[$key]['visible']);
+        };
+        $is_required = static function(string $key) use ($field_settings): bool {
+            return !empty($field_settings[$key]['visible']) && !empty($field_settings[$key]['required']);
+        };
+        $required_mark = static function(bool $required): string {
+            return $required ? '<span class="arm-required">*</span>' : '';
+        };
+        $required_attr = static function(bool $required): string {
+            return $required ? ' required' : '';
+        };
+
         ob_start();
         ?>
         <div class="arm-wrap">
@@ -626,13 +682,13 @@ final class ARM_Form {
                             <label for="arm_fecha_recepcion"><strong>Fecha de recepción</strong><span class="arm-required">*</span></label>
                             <input id="arm_fecha_recepcion" class="arm-input" type="date" name="arm_fecha_recepcion" required>
                         </div>
-                        <div class="arm-field">
-                            <label for="arm_cliente"><strong>Cliente</strong><span class="arm-required">*</span></label>
-                            <input id="arm_cliente" class="arm-input" type="text" name="arm_cliente" required autocomplete="off" autocapitalize="words">
+                        <div class="arm-field"<?php echo $is_visible('arm_cliente') ? "" : " style=\"display:none;\""; ?>>
+                            <label for="arm_cliente"><strong>Cliente</strong><?php echo $required_mark($is_required('arm_cliente')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <input id="arm_cliente" class="arm-input" type="text" name="arm_cliente"<?php echo $required_attr($is_required('arm_cliente')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> autocomplete="off" autocapitalize="words">
                         </div>
-                        <div class="arm-field">
-                            <label for="arm_correo_cliente"><strong>Correo cliente</strong></label>
-                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off">
+                        <div class="arm-field"<?php echo $is_visible('arm_correo_cliente') ? "" : " style=\"display:none;\""; ?>>
+                            <label for="arm_correo_cliente"><strong>Correo cliente</strong><?php echo $required_mark($is_required('arm_correo_cliente')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <input id="arm_correo_cliente" class="arm-input" type="email" name="arm_correo_cliente" placeholder="cliente@dominio.cl" inputmode="email" autocomplete="off"<?php echo $required_attr($is_required('arm_correo_cliente')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         </div>
                     </div>
                 </section>
@@ -690,30 +746,30 @@ final class ARM_Form {
                             </div>
                         </div>
 
-                        <div class="arm-field">
-                            <label for="arm_modelo"><strong>Modelo</strong></label>
-                            <input id="arm_modelo" class="arm-input" type="text" name="arm_modelo" autocomplete="off" autocapitalize="characters">
+                        <div class="arm-field"<?php echo $is_visible('arm_modelo') ? "" : " style=\"display:none;\""; ?>>
+                            <label for="arm_modelo"><strong>Modelo</strong><?php echo $required_mark($is_required('arm_modelo')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <input id="arm_modelo" class="arm-input" type="text" name="arm_modelo"<?php echo $required_attr($is_required('arm_modelo')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> autocomplete="off" autocapitalize="characters">
                         </div>
 
-                        <div class="arm-field">
-                            <label for="arm_interno"><strong>Interno</strong></label>
-                            <input id="arm_interno" class="arm-input" type="text" name="arm_interno" autocomplete="off" autocapitalize="characters">
+                        <div class="arm-field"<?php echo $is_visible('arm_interno') ? "" : " style=\"display:none;\""; ?>>
+                            <label for="arm_interno"><strong>Interno</strong><?php echo $required_mark($is_required('arm_interno')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <input id="arm_interno" class="arm-input" type="text" name="arm_interno"<?php echo $required_attr($is_required('arm_interno')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> autocomplete="off" autocapitalize="characters">
                         </div>
 
-                        <div class="arm-field">
-                            <label for="arm_serie"><strong>Serie</strong></label>
-                            <input id="arm_serie" class="arm-input" type="text" name="arm_serie" autocomplete="off" autocapitalize="characters">
+                        <div class="arm-field"<?php echo $is_visible('arm_serie') ? "" : " style=\"display:none;\""; ?>>
+                            <label for="arm_serie"><strong>Serie</strong><?php echo $required_mark($is_required('arm_serie')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <input id="arm_serie" class="arm-input" type="text" name="arm_serie"<?php echo $required_attr($is_required('arm_serie')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> autocomplete="off" autocapitalize="characters">
                         </div>
 
-                        <div class="arm-field">
-                            <label for="arm_patente"><strong>Patente</strong></label>
-                            <input id="arm_patente" class="arm-input" type="text" name="arm_patente" autocomplete="off" autocapitalize="characters" placeholder="ABCD12">
+                        <div class="arm-field"<?php echo $is_visible('arm_patente') ? "" : " style=\"display:none;\""; ?>>
+                            <label for="arm_patente"><strong>Patente</strong><?php echo $required_mark($is_required('arm_patente')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <input id="arm_patente" class="arm-input" type="text" name="arm_patente"<?php echo $required_attr($is_required('arm_patente')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> autocomplete="off" autocapitalize="characters" placeholder="ABCD12">
                             <div class="arm-hint">Se guarda en mayúsculas automáticamente.</div>
                         </div>
 
-                        <div class="arm-field">
-                            <label for="arm_horas"><strong>Horas</strong></label>
-                            <input id="arm_horas" class="arm-input" type="number" name="arm_horas" inputmode="numeric" min="0" step="1" placeholder="0">
+                        <div class="arm-field"<?php echo $is_visible('arm_horas') ? "" : " style=\"display:none;\""; ?>>
+                            <label for="arm_horas"><strong>Horas</strong><?php echo $required_mark($is_required('arm_horas')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <input id="arm_horas" class="arm-input" type="number" name="arm_horas"<?php echo $required_attr($is_required('arm_horas')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> inputmode="numeric" min="0" step="1" placeholder="0">
                         </div>
                     </div>
                 </section>
@@ -723,15 +779,15 @@ final class ARM_Form {
                     <h2>Detalle</h2>
                     <p class="arm-help">Describe la falla, marca el checklist y agrega observaciones relevantes.</p>
 
-                    <div class="arm-section is-soft">
-                        <h3>Falla</h3>
+                    <div class="arm-section is-soft"<?php echo $is_visible('arm_falla') ? "" : " style=\"display:none;\""; ?>>
+                        <h3>Falla<?php echo $required_mark($is_required('arm_falla')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></h3>
                         <div class="arm-field">
-                            <textarea class="arm-textarea" name="arm_falla" rows="3" placeholder="Síntoma + cuándo ocurre + cualquier detalle útil"></textarea>
+                            <textarea class="arm-textarea" name="arm_falla" rows="3" placeholder="Síntoma + cuándo ocurre + cualquier detalle útil"<?php echo $required_attr($is_required('arm_falla')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></textarea>
                         </div>
                     </div>
 
-                    <div class="arm-section is-soft">
-                        <h3>Checklist</h3>
+                    <div class="arm-section is-soft"<?php echo $is_visible('arm_checklist') ? "" : " style=\"display:none;\""; ?>>
+                        <h3>Checklist<?php echo $required_mark($is_required('arm_checklist')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></h3>
                         <div class="arm-inline" style="margin-bottom:10px;">
                             <button type="button" class="arm-btn" data-action="check-all">Marcar todo</button>
                             <button type="button" class="arm-btn" data-action="check-none">Limpiar</button>
@@ -754,46 +810,46 @@ final class ARM_Form {
                         </div>
                     </div>
 
-                    <div class="arm-section is-soft">
-                        <h3>Otros</h3>
+                    <div class="arm-section is-soft"<?php echo $is_visible('arm_otros') ? "" : " style=\"display:none;\""; ?>>
+                        <h3>Otros<?php echo $required_mark($is_required('arm_otros')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></h3>
                         <div class="arm-field">
-                            <textarea class="arm-textarea" name="arm_otros" rows="2"></textarea>
+                            <textarea class="arm-textarea" name="arm_otros" rows="2"<?php echo $required_attr($is_required('arm_otros')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></textarea>
                         </div>
                     </div>
 
-                    <div class="arm-section is-soft">
+                    <div class="arm-section is-soft"<?php echo ($is_visible('arm_llaves') || $is_visible('arm_nivel_combustible') || $is_visible('arm_observaciones')) ? "" : " style=\"display:none;\""; ?>>
                         <h3>Estado</h3>
 
                         <div class="arm-grid">
-                            <div class="arm-field">
-                                <label><strong>Llaves</strong></label>
+                            <div class="arm-field"<?php echo $is_visible('arm_llaves') ? "" : " style=\"display:none;\""; ?>>
+                                <label><strong>Llaves</strong><?php echo $required_mark($is_required('arm_llaves')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
                                 <div class="arm-inline">
-                                    <label class="arm-chip"><input type="radio" name="arm_llaves" value="SI"> SI</label>
+                                    <label class="arm-chip"><input type="radio" name="arm_llaves" value="SI"<?php echo $required_attr($is_required('arm_llaves')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>> SI</label>
                                     <label class="arm-chip"><input type="radio" name="arm_llaves" value="NO"> NO</label>
                                 </div>
                             </div>
 
-                            <div class="arm-field">
-                                <label><strong>Nivel de combustible</strong></label>
+                            <div class="arm-field"<?php echo $is_visible('arm_nivel_combustible') ? "" : " style=\"display:none;\""; ?>>
+                                <label><strong>Nivel de combustible</strong><?php echo $required_mark($is_required('arm_nivel_combustible')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
                                 <div class="arm-inline">
-                                    <label class="arm-chip"><input type="radio" name="arm_nivel_combustible" value="Mínimo"> Mínimo</label>
+                                    <label class="arm-chip"><input type="radio" name="arm_nivel_combustible" value="Mínimo"<?php echo $required_attr($is_required('arm_nivel_combustible')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>> Mínimo</label>
                                     <label class="arm-chip"><input type="radio" name="arm_nivel_combustible" value="Medio"> Medio</label>
                                     <label class="arm-chip"><input type="radio" name="arm_nivel_combustible" value="Lleno"> Lleno</label>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="arm-field">
-                            <label><strong>Observaciones</strong></label>
-                            <textarea class="arm-textarea" name="arm_observaciones" rows="3"></textarea>
+                        <div class="arm-field"<?php echo $is_visible('arm_observaciones') ? "" : " style=\"display:none;\""; ?>>
+                            <label><strong>Observaciones</strong><?php echo $required_mark($is_required('arm_observaciones')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
+                            <textarea class="arm-textarea" name="arm_observaciones" rows="3"<?php echo $required_attr($is_required('arm_observaciones')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></textarea>
                         </div>
                     </div>
 
-                    <div class="arm-section is-soft">
-                        <h3>Imágenes (recomendado 3 • máx. 10)</h3>
+                    <div class="arm-section is-soft"<?php echo $is_visible('arm_imagenes') ? "" : " style=\"display:none;\""; ?>>
+                        <h3>Imágenes (recomendado 3 • máx. 10)<?php echo $required_mark($is_required('arm_imagenes')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></h3>
                         <div class="arm-file">
                             <div class="arm-field">
-                                <input id="arm_images" class="arm-input" type="file" name="arm_imagenes[]" accept="image/*" multiple>
+                                <input id="arm_images" class="arm-input" type="file" name="arm_imagenes[]" accept="image/*" multiple<?php echo $required_attr($is_required('arm_imagenes')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                                 <div class="arm-sub" style="margin-top:6px;">Sugerencia: 1 general + 1 placa/serie + 1 falla. Máx. 10 fotos.</div>
                                 <div class="arm-sub">Si una imagen es muy pesada, se ajusta el tamaño máximo sin afectar la nitidez.</div>
                                 <div id="arm_img_hint" class="arm-sub" style="margin-top:4px;"></div>
@@ -847,6 +903,11 @@ final class ARM_Form {
             $this->redirect_err('Tipo inválido');
         }
 
+        $field_settings = self::get_field_settings();
+        $field_required = static function(string $key) use ($field_settings): bool {
+            return !empty($field_settings[$key]['visible']) && !empty($field_settings[$key]['required']);
+        };
+
         $meta = [];
         $meta['arm_tipo_maquinaria'] = $tipo;
         $meta['arm_tipo_tractor'] = ($tipo === 'Tractor') ? ARM_Utils::sanitize_text($_POST['arm_tipo_tractor'] ?? '') : '';
@@ -873,9 +934,32 @@ final class ARM_Form {
         $meta['arm_nivel_combustible'] = ARM_Utils::sanitize_text($_POST['arm_nivel_combustible'] ?? '');
         $meta['arm_observaciones'] = ARM_Utils::sanitize_textarea($_POST['arm_observaciones'] ?? '');
 
+        $required_messages = [
+            'arm_cliente' => 'Cliente es obligatorio',
+            'arm_correo_cliente' => 'Correo cliente es obligatorio',
+            'arm_modelo' => 'Modelo es obligatorio',
+            'arm_interno' => 'Interno es obligatorio',
+            'arm_serie' => 'Serie es obligatorio',
+            'arm_patente' => 'Patente es obligatorio',
+            'arm_horas' => 'Horas es obligatorio',
+            'arm_falla' => 'Falla reportada es obligatoria',
+            'arm_otros' => 'Otros es obligatorio',
+            'arm_llaves' => 'Llaves es obligatorio',
+            'arm_nivel_combustible' => 'Nivel de combustible es obligatorio',
+            'arm_observaciones' => 'Observaciones es obligatorio',
+        ];
+        foreach ($required_messages as $field_key => $message) {
+            if ($field_required($field_key) && ($meta[$field_key] ?? '') === '') {
+                $this->redirect_err($message);
+            }
+        }
+
         $checklist = $_POST['arm_checklist'] ?? [];
         if (!is_array($checklist)) $checklist = [];
         $checklist = array_values(array_unique(array_map('sanitize_text_field', $checklist)));
+        if ($field_required('arm_checklist') && empty($checklist)) {
+            $this->redirect_err('Checklist es obligatorio');
+        }
 
         // Insert post
         $title = 'Recepción #' . date_i18n('Ymd-His') . ' - ' . $meta['arm_cliente'];
@@ -949,6 +1033,10 @@ final class ARM_Form {
                     }
                 }
             }
+        }
+
+        if ($field_required('arm_imagenes') && $image_count === 0) {
+            $this->redirect_err('Debes subir al menos una imagen');
         }
 
         // Generate PDF
