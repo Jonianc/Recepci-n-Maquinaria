@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+- Agrega opción "Otra" en "Marca (implemento)" con campo manual obligatorio cuando aplica.
+- Permite configurar "Tipo de implemento" desde Ajustes con textarea (una opción por línea) y fallback por defecto.
+- Unifica la lógica JS del formulario en `assets/js/form.js` y la referencia desde la vista standalone.
+- Mantiene compatibilidad de resumen, validación, guardado, PDF, correos y listado admin usando los metadatos existentes.
+
 ## 1.1.7
 - Hace opcional el campo "Correo cliente" en el formulario de recepción.
 - Si se ingresa correo de cliente, valida formato y muestra error si es inválido.

@@ -11,6 +11,7 @@ final class ARM_Settings {
     const OPT_FROM_NAME        = 'arm_from_name';
     const OPT_REPLY_TO         = 'arm_reply_to';
     const OPT_PDF_FOOTER       = 'arm_pdf_footer';
+    const OPT_IMPLEMENT_TYPES  = 'arm_implement_types';
 
     const OPT_FRONT_SLUG       = 'arm_front_slug';
     public function __construct() {
@@ -76,6 +77,31 @@ final class ARM_Settings {
             'sanitize_callback' => [$this, 'sanitize_pdf_footer'],
             'default' => 'Talca - Linares - Parral | +56 9 9748 5650',
         ]);
+
+        register_setting('arm_settings_group', self::OPT_IMPLEMENT_TYPES, [
+            'type' => 'string',
+            'sanitize_callback' => [$this, 'sanitize_implement_types'],
+            'default' => "Segadora\nTrituradora\nPulverizador",
+        ]);
+    }
+
+
+    public function sanitize_implement_types($v): string {
+        $v = is_string($v) ? $v : '';
+        $v = str_replace(["\r"], '', $v);
+        $lines = preg_split('/\n+/', $v) ?: [];
+        $out = [];
+        foreach ($lines as $line) {
+            $line = sanitize_text_field(trim((string) $line));
+            if ($line === '') continue;
+            if (!in_array($line, $out, true)) {
+                $out[] = $line;
+            }
+        }
+        if (!$out) {
+            $out = ['Segadora', 'Trituradora', 'Pulverizador'];
+        }
+        return implode("\n", $out);
     }
 
     /**
@@ -127,6 +153,14 @@ final class ARM_Settings {
                             <input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_FRONT_SLUG); ?>" value="<?php echo esc_attr(get_option(self::OPT_FRONT_SLUG, 'recepcion-maquinaria')); ?>" placeholder="recepcion-maquinaria">
                             <p class="description">URL: <code><?php echo esc_html(trailingslashit(home_url('/' . sanitize_title(get_option(self::OPT_FRONT_SLUG, 'recepcion-maquinaria'))))); ?></code></p>
                             <p class="description">Vista standalone (sin theme). Al cambiar el slug se actualizan los permalinks.</p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row">Tipos de implemento (formulario)</th>
+                        <td>
+                            <textarea name="<?php echo esc_attr(self::OPT_IMPLEMENT_TYPES); ?>" rows="5" class="large-text" placeholder="Segadora&#10;Trituradora&#10;Pulverizador"><?php echo esc_textarea(get_option(self::OPT_IMPLEMENT_TYPES, "Segadora\nTrituradora\nPulverizador")); ?></textarea>
+                            <p class="description">Una opción por línea. Si queda vacío, se usan valores por defecto.</p>
                         </td>
                     </tr>
                 </table>
